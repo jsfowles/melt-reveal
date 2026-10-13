@@ -1,0 +1,40 @@
+---
+// Each specimen explains one stage of the effect while it runs.
+import "./Specimens.scss";
+
+const specimens = [
+  {
+    label: "Split",
+    text: "The paragraph is split into the lines you actually see. Each word is measured, and a new line starts wherever a word’s top edge drops. It splits again when the fonts load and when the window resizes.",
+  },
+  {
+    label: "Flip",
+    text: "Every word sits inside its own clipping box. It starts pushed down below that box and tipped back ninety degrees, then swings up around a pivot set a full em behind the text.",
+  },
+  {
+    label: "Melt",
+    text: "At the same time, an SVG filter blurs the outline of the line, mixes in a tiled grid of soft dots, and cuts the result at a hard threshold. The ink is blurred the same way and clipped to that cut, which gives it its gooey, dotted edge.",
+  },
+  {
+    label: "Scrub",
+    text: "Each line has its own scroll trigger. It starts when the top of the line crosses the cyan start rule and finishes at the magenta end rule, so lines land one after another and reverse when you scroll back up.",
+  },
+  {
+    label: "Cost",
+    text: "Every line carries its own filter until it finishes, and a filter is expensive to paint. It comes off the moment a line lands, so lines you have already read cost nothing.",
+  },
+  {
+    label: "Try",
+    text: "Raise the blur and the dot size for a coarse halftone: the dots only show in the blurred edge, so more blur means more dots. Turn the flip off and let the ink carry the reveal on its own. Or push the edge hardness down until the letters turn to soft clouds.",
+  },
+];
+---
+
+<article class="specimens">
+  {specimens.map(({ label, text }) => (
+    <section class="specimen">
+      <h2 class="specimen-label mono">{label}</h2>
+      <p class="big reveal">{text}</p>
+    </section>
+  ))}
+</article>

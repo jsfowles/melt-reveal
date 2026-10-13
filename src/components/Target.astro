@@ -1,0 +1,14 @@
+---
+// A registration target, drawn in the current colour.
+import "./Target.scss";
+
+type Props = { class?: string };
+
+const { class: className } = Astro.props;
+---
+
+<svg class:list={["target", className]} viewBox="0 0 24 24" aria-hidden="true">
+  <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor"></circle>
+  <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+  <path d="M12 0v24M0 12h24" stroke="currentColor"></path>
+</svg>

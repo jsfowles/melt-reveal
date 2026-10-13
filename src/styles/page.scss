@@ -1,0 +1,69 @@
+@use "mixins" as *;
+
+// The sheet: the copy column, the panel beside it and the crop marks.
+.sheet {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  column-gap: clamp(40px, 5vw, 80px);
+  margin: 40px var(--inset);
+  padding: 104px clamp(40px, 5vw, 72px) 48px;
+  background: var(--surface);
+
+  @include phone {
+    grid-template-columns: minmax(0, 1fr);
+    margin: 12px var(--inset);
+    padding: 80px 24px 96px;
+  }
+}
+.sheet-copy {
+  position: relative;
+  min-width: 0;
+}
+
+.crop {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 0 solid var(--text);
+
+  &.tl {
+    inset: -32px auto auto -32px;
+    border-width: 0 1px 1px 0;
+  }
+  &.tr {
+    inset: -32px -32px auto auto;
+    border-width: 0 0 1px 1px;
+  }
+  &.bl {
+    inset: auto auto -32px -32px;
+    border-width: 1px 1px 0 0;
+  }
+  &.br {
+    inset: auto -32px -32px auto;
+    border-width: 1px 0 0 1px;
+  }
+  @include phone {
+    display: none;
+  }
+}
+
+.headline {
+  margin: 0 0 24px;
+  font-size: var(--text-display);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+.lede {
+  max-width: 34em;
+  margin: 0;
+  font-size: var(--text-lede);
+  line-height: 1.5;
+}
+.slug {
+  grid-column: 1 / -1;
+  margin: 56px 0 0;
+  color: var(--text-muted);
+}

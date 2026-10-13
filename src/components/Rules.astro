@@ -1,0 +1,19 @@
+---
+// The start and end rules, placed by main.ts. Their labels sit above the
+// inspector; the rules pass behind it.
+import "./Rules.scss";
+import Target from "./Target.astro";
+---
+
+{["start", "end"].map((rule) => (
+  <>
+    <div class={`rule ${rule}`} id={`guide-${rule}`} aria-hidden="true">
+      <Target class="rule-target" />
+    </div>
+    <span
+      class="rule-label mono"
+      id={`guide-${rule}-label`}
+      aria-hidden="true"
+    />
+  </>
+))}

@@ -1,0 +1,13 @@
+---
+// A square check box with its label.
+import "./Switch.scss";
+
+type Props = { id: string; name?: string; checked?: boolean; class?: string };
+
+const { class: className, ...input } = Astro.props;
+---
+
+<label class:list={["switch", className]}>
+  <input type="checkbox" {...input} />
+  <slot />
+</label>

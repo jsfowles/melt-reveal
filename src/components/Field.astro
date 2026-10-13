@@ -1,0 +1,32 @@
+---
+// One setting: a labelled slider, or the ease menu.
+import "./Field.scss";
+import type { Control } from "../controls";
+
+type Props = { control: Control };
+
+const { control } = Astro.props;
+---
+
+<div class="field">
+  <label for={control.key}>{control.label}</label>
+  {"options" in control ? (
+    <select id={control.key} name={control.key} translate="no">
+      {control.options.map((option) => (
+        <option>{option}</option>
+      ))}
+    </select>
+  ) : (
+    <>
+      <output for={control.key} />
+      <input
+        type="range"
+        id={control.key}
+        name={control.key}
+        min={control.min}
+        max={control.max}
+        step={control.step}
+      />
+    </>
+  )}
+</div>

@@ -1,0 +1,32 @@
+---
+// The top of the sheet: the colour bar, the registration target, and a link
+// to the docs.
+import "./Marks.scss";
+import Target from "./Target.astro";
+
+const inks = [
+  "var(--accent-2)",
+  "var(--accent)",
+  "var(--yellow)",
+  "var(--text)",
+];
+const patches = [
+  ...inks,
+  ...inks.map((ink) => `color-mix(in srgb, ${ink} 50%, white)`),
+];
+---
+
+<div class="marks">
+  <span class="marks-bar" aria-hidden="true">
+    {patches.map((ink) => (
+      <i style={{ background: ink }} />
+    ))}
+  </span>
+  <Target class="marks-target" />
+  <a
+    class="marks-docs mono"
+    href="https://github.com/jsfowles/melt-reveal#readme"
+  >
+    Docs
+  </a>
+</div>

@@ -1,0 +1,21 @@
+@use "../styles/mixins" as *;
+
+.specimens {
+  display: grid;
+  gap: clamp(64px, 14vh, 160px);
+  // Room for the last line to scroll up to the end rule.
+  padding-block: clamp(48px, 10vh, 120px)
+    max(48px, calc(var(--finish, 35vh) - 160px));
+}
+.specimen {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: baseline;
+
+  @include phone {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+}
+.specimen-label {
+  margin: 0;
+}

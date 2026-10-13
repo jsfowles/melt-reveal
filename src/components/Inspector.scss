@@ -1,0 +1,62 @@
+// Sits above the start/end rules, which pass behind it.
+.inspector {
+  position: relative;
+  z-index: 6;
+  display: grid;
+  gap: 28px;
+  margin-top: 64px;
+  padding-block: 28px 8px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.inspector-wedge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 16px;
+  max-width: 640px;
+  font-size: var(--text-ui);
+
+  label {
+    font-weight: 500;
+  }
+}
+.inspector-play {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 600;
+  text-decoration: underline 1px;
+  text-underline-offset: 4px;
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+.inspector-track {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 28px;
+  border: 1px solid var(--border);
+
+  input {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    width: 100%;
+  }
+}
+.inspector-steps {
+  position: absolute;
+  inset: 0;
+  display: flex;
+
+  i {
+    flex: 1;
+  }
+}
+.inspector-scale {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+}

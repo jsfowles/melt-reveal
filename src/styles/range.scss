@@ -1,0 +1,74 @@
+@use "mixins" as *;
+
+// --h is the input's height, --tw/--th the thumb's. Chrome puts the thumb at
+// the top of the track, so it's pulled down to centre; Firefox centres.
+input[type="range"] {
+  --h: 14px;
+  --tw: 3px;
+  --th: 11px;
+  --thumb: var(--text);
+  --rule: linear-gradient(var(--border), var(--border)) center / 100% 1px
+    no-repeat;
+  --ticks: repeating-linear-gradient(
+      90deg,
+      var(--border) 0 1px,
+      transparent 1px 10%
+    )
+    center / 100% 7px no-repeat;
+  appearance: none;
+  width: 100%;
+  height: var(--h);
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+
+  &::-webkit-slider-runnable-track {
+    height: var(--h);
+    background: transparent;
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: var(--tw);
+    height: var(--th);
+    margin-top: calc((var(--h) - var(--th)) / 2);
+    border: 0;
+    background: var(--thumb);
+  }
+  &::-moz-range-thumb {
+    width: var(--tw);
+    height: var(--th);
+    border: 0;
+    border-radius: 0;
+    background: var(--thumb);
+  }
+
+  // A settings row: a hairline, with ticks and a target while in hand.
+  .field & {
+    background: var(--rule);
+  }
+  .field:is(:hover, :focus-within) &,
+  .inspector-track & {
+    --tw: 16px;
+    --th: 16px;
+    --thumb: var(--target) center / contain no-repeat;
+  }
+  .field:is(:hover, :focus-within) & {
+    background: var(--rule), var(--ticks);
+  }
+  .inspector-track & {
+    --h: 28px;
+    --tw: 30px;
+    --th: 30px;
+  }
+  // Bigger touch targets on phones.
+  @include phone {
+    .field &,
+    .field:is(:hover, :focus-within) & {
+      --h: 44px;
+      --tw: 28px;
+      --th: 28px;
+      --thumb: var(--target) center / contain no-repeat;
+      background: var(--rule), var(--ticks);
+    }
+  }
+}

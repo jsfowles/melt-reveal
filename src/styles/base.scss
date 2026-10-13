@@ -1,0 +1,69 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 var(--text-body)/1.5 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+::selection {
+  background: var(--yellow);
+  color: var(--text);
+}
+:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+}
+button,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+}
+
+// The big reading size: the inspector line and the specimens.
+.big {
+  max-width: 18em;
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.028em;
+}
+:is(button, input, select, summary, label) {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+[hidden] {
+  display: none !important;
+}
+// Hidden until fonts load: main.ts adds .ready, the head forces it at 3s.
+.js:not(.ready) :is(.sheet, .rule, .rule-label) {
+  visibility: hidden;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+// Change marks: "was 0.4em" and "1 changed".
+.pen {
+  font-family: var(--font-mono);
+  font-size: var(--text-value);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--accent);
+
+  &.mono {
+    font-size: var(--text-label);
+  }
+}

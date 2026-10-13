@@ -1,0 +1,66 @@
+---
+import "lenis/dist/lenis.css";
+import "../styles/index.scss";
+
+import Inspector from "../components/Inspector.astro";
+import Marks from "../components/Marks.astro";
+import Panel from "../components/Panel.astro";
+import Rules from "../components/Rules.astro";
+import Specimens from "../components/Specimens.astro";
+
+const description =
+  "A scroll text reveal: each line flips up out of a clip while an SVG filter melts it from halftone ink into crisp type. Tune every setting live, then copy one file into your project.";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#d5d9dc" />
+    <title>Melt Reveal Playground</title>
+    <meta name="description" content={description} />
+    <link
+      rel="preload"
+      href="/fonts/geist-latin-wght-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <script is:inline>
+      document.documentElement.classList.add("js");
+      setTimeout(() => document.documentElement.classList.add("ready"), 3000);
+    </script>
+  </head>
+  <body>
+    <div class="sheet">
+      <Marks />
+      <main class="sheet-copy">
+        {["tl", "tr", "bl", "br"].map((corner) => (
+          <span class={`crop ${corner}`} aria-hidden="true" />
+        ))}
+        <h1 class="headline" id="title">
+          Melt reveal
+        </h1>
+        <p class="lede">
+          Each line flips up out of a clip while its ink settles from a dot
+          screen into crisp type, tied to your scroll. Scroll down to proof it,
+          and mark up the make-ready to change it.
+        </p>
+        <Inspector />
+        <Specimens />
+      </main>
+      <Panel />
+      <p class="slug mono">Melt reveal · proof 01 · MIT</p>
+    </div>
+    <Rules />
+
+    <script>
+      import "../main";
+    </script>
+  </body>
+</html>

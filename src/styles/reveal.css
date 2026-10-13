@@ -1,0 +1,14 @@
+/* Melt reveal: the CSS the effect needs, alongside melt.ts. MIT licence. */
+
+/* Clip a little outside each word so descenders aren't cut. */
+.word-mask {
+  overflow: visible !important;
+  clip-path: inset(-0.15em -0.08em);
+}
+
+.melt-filters {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}

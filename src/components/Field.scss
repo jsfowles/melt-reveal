@@ -1,0 +1,59 @@
+@use "../styles/mixins" as *;
+
+// One row: label, the "was" reset when changed, the value; its slider below.
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  column-gap: 10px;
+
+  &:has(select) {
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  label {
+    font-size: var(--text-ui);
+    line-height: 15px;
+  }
+  output,
+  select {
+    font-family: var(--font-mono);
+    font-size: var(--text-value);
+    font-weight: 500;
+    text-align: right;
+  }
+  output {
+    min-width: 6ch;
+    line-height: 15px;
+  }
+  input {
+    grid-column: 1 / -1;
+  }
+  select {
+    grid-column: 2 / -1;
+    appearance: none;
+    padding: 0 16px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--surface)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23111' stroke-width='1.2'/%3E%3C/svg%3E")
+      right 2px center / 10px 6px no-repeat;
+    cursor: pointer;
+  }
+  .was {
+    grid-column: 2;
+    padding: 0;
+    border: 0;
+    background: none;
+    white-space: nowrap;
+
+    &:hover {
+      text-decoration: line-through;
+    }
+    @include phone {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+    }
+  }
+}

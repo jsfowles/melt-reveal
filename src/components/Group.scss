@@ -1,0 +1,99 @@
+@use "../styles/mixins" as *;
+
+.group {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-top: 2px solid var(--border);
+
+  legend {
+    float: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 2px 0;
+    font-size: var(--text-ui);
+    font-weight: 700;
+
+    & + * {
+      clear: both;
+    }
+  }
+  // The change count shows only while the group is folded.
+  &:has(.group-rows:not([inert])) .group-changed {
+    display: none;
+  }
+}
+
+.group-fold {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+
+  &::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border: solid var(--text);
+    border-width: 0 1.5px 1.5px 0;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 240ms var(--ease-out);
+  }
+  &:hover::before {
+    border-color: var(--accent);
+  }
+  &[aria-expanded="true"]::before {
+    transform: translateY(2px) rotate(-135deg);
+  }
+  @include phone {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+// Folds animate their height, and shut faster than they open.
+.group-rows {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 240ms var(--ease-out);
+
+  .group:disabled & {
+    opacity: 0.35;
+  }
+  &[inert] {
+    grid-template-rows: 0fr;
+    transition-duration: 180ms;
+  }
+  > div {
+    display: grid;
+    min-height: 0;
+    // Room for focus rings inside the clip.
+    margin-inline: -6px;
+    padding-inline: 6px;
+    overflow: hidden;
+    transition: opacity 240ms var(--ease-out);
+
+    > :last-child {
+      margin-bottom: 6px;
+    }
+  }
+  &[inert] > div {
+    opacity: 0;
+    transition-duration: 120ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .group-rows,
+  .group-fold::before {
+    transition: none;
+  }
+}

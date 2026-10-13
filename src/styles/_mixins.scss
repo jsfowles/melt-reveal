@@ -1,0 +1,6 @@
+// Phones and narrow windows: the panel becomes a bottom sheet.
+@mixin phone {
+  @media (max-width: 899px) {
+    @content;
+  }
+}

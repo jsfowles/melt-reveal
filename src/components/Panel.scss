@@ -1,0 +1,191 @@
+@use "../styles/mixins" as *;
+
+.panel {
+  position: sticky;
+  top: 24px;
+  z-index: 6;
+  align-self: start;
+  max-height: calc(100vh - 48px);
+  margin-top: -32px;
+  padding-right: 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border-top: 2px solid var(--border);
+  scrollbar-width: thin;
+
+  @include phone {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 20;
+    max-height: 75vh;
+    margin-top: 0;
+    padding: 0 16px env(safe-area-inset-bottom, 0px);
+  }
+
+  summary {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0 8px;
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+    // On a phone the summary opens and shuts the sheet.
+    @include phone {
+      cursor: pointer;
+
+      &::after {
+        content: "";
+        width: 8px;
+        height: 8px;
+        margin-left: auto;
+        border: solid var(--text);
+        border-width: 1.5px 1.5px 0 0;
+        transform: translateY(2px) rotate(-45deg);
+      }
+    }
+  }
+  &[open] summary::after {
+    transform: translateY(-2px) rotate(135deg);
+  }
+}
+.panel-title {
+  font-size: var(--text-panel);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.panel-body {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 16px;
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border);
+
+  li {
+    border-bottom: 1px solid var(--border);
+
+    &:not(:nth-child(3n + 1)) {
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+  }
+  button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 28px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: var(--text-ui);
+    font-weight: 500;
+    text-align: left;
+
+    &::before {
+      content: "";
+      flex: none;
+      width: 10px;
+      height: 10px;
+      border: 1px solid var(--border);
+    }
+    &[aria-pressed="true"]::before {
+      background: var(--text);
+    }
+    &:hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    @include phone {
+      min-height: 44px;
+    }
+  }
+}
+.preset-note {
+  min-height: 1.4em;
+  margin: -4px 0 0;
+  font-size: var(--text-ui);
+  color: var(--text-muted);
+}
+
+.panel-settings {
+  display: grid;
+  gap: 8px;
+}
+
+.sign-off {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 2px solid var(--border);
+}
+.panel-rules {
+  font-size: var(--text-ui);
+
+  @include phone {
+    min-height: 44px;
+  }
+}
+.approve {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: var(--text-ui);
+  font-weight: 600;
+
+  &:hover {
+    background: var(--text);
+    color: var(--surface);
+  }
+  @include phone {
+    min-height: 44px;
+  }
+}
+.approve-box {
+  position: relative;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid currentColor;
+
+  .done &::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: -6px;
+    width: 7px;
+    height: 15px;
+    border: solid var(--accent);
+    border-width: 0 3px 3px 0;
+    transform: rotate(40deg);
+  }
+}
+.copy-failed {
+  margin: 0;
+  font-size: var(--text-ui);
+  color: var(--accent);
+}
+.panel-code {
+  margin: 0;
+  padding: 10px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--text-value);
+  line-height: 1.5;
+  user-select: all;
+}

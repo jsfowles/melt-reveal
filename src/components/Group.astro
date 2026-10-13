@@ -1,0 +1,50 @@
+---
+// A foldable group of settings, starting folded.
+import "./Group.scss";
+import type { Group } from "../controls";
+import Field from "./Field.astro";
+import Switch from "./Switch.astro";
+
+type Props = { group: Group };
+
+const { group } = Astro.props;
+---
+
+<fieldset class="group" data-toggle={group.toggle}>
+  <legend>
+    {group.toggle ? (
+      <Switch id={group.toggle} name={group.toggle}>
+        {group.label}
+      </Switch>
+    ) : (
+      <span>{group.label}</span>
+    )}
+    <span class="pen mono group-changed" hidden></span>
+    <button
+      type="button"
+      class="group-fold"
+      aria-expanded="false"
+      aria-controls={`${group.id}-rows`}
+      aria-label={`${group.label} settings`}
+    ></button>
+  </legend>
+  <div class="group-rows" id={`${group.id}-rows`} inert>
+    <div>
+      {group.controls.map((control) => (
+        <Field control={control} />
+      ))}
+    </div>
+  </div>
+</fieldset>
+
+<script>
+  for (const fold of document.querySelectorAll<HTMLButtonElement>(
+    ".group-fold",
+  )) {
+    const rows = document.getElementById(fold.getAttribute("aria-controls")!)!;
+    fold.addEventListener("click", () => {
+      rows.inert = !rows.inert;
+      fold.ariaExpanded = String(!rows.inert);
+    });
+  }
+</script>
