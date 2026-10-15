@@ -1,7 +1,7 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-import { enter, TITLE_AT } from "./entrance";
+import { enter, INSPECTOR_AT, TITLE_AT } from "./entrance";
 import { DEFAULTS, meltReveal, type Settings } from "./melt";
 import { startDock } from "./dock";
 import source from "./melt.ts?raw";
@@ -151,9 +151,14 @@ void Promise.race([
       undoTitle();
       ScrollTrigger.refresh();
     });
+    // The inspector's line plays through as it fades in.
+    intro.call(() => void inspector?.play(0), undefined, INSPECTOR_AT);
     // Start a frame after the page first paints, so that heavy first frame
     // doesn't swallow the opening.
     requestAnimationFrame(() => requestAnimationFrame(() => intro.play()));
+  } else if (!reduced.matches) {
+    // The page was shown without its intro, the fonts having been slow.
+    inspector?.play(0);
   }
   root.classList.add("ready");
 });

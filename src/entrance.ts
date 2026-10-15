@@ -3,6 +3,8 @@ import { gsap } from "gsap";
 // The first-load animation, returned paused. The title's reveal goes in at
 // TITLE_AT.
 export const TITLE_AT = 0.3;
+// When the inspector starts to fade in: the lede at 0.5, then a 0.08 stagger.
+export const INSPECTOR_AT = 0.58;
 
 export const enter = () => {
   const tl = gsap.timeline({

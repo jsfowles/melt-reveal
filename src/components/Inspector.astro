@@ -21,14 +21,7 @@ const wedge = [...steps, "#6d6d6d", "#535353", "#3a3a3a", "#242424", "#111"];
           <i style={{ background: grey }} />
         ))}
       </span>
-      <input
-        type="range"
-        id="scrub"
-        min="0"
-        max="1"
-        step="0.001"
-        value="0.35"
-      />
+      <input type="range" id="scrub" min="0" max="1" step="0.001" value="1" />
     </div>
     <span class="inspector-scale mono" aria-hidden="true">
       {[0, 25, 50, 75, 100].map((n) => (
