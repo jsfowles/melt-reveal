@@ -16,7 +16,7 @@ const SVG = "http://www.w3.org/2000/svg";
 // rather than each as a 3D layer, and the line waits unfiltered too.
 const CSS = `
 .melt-word-mask { overflow: visible !important; clip-path: inset(-0.15em -0.08em); }
-.melt-waiting, .melt-waiting .melt-word { filter: none !important; }
+.melt-waiting { filter: none !important; }
 .melt-waiting .melt-word { visibility: hidden; transform: none !important; }
 `;
 let styled = false;
@@ -72,8 +72,7 @@ const edge = (a: number) =>
 
 const STAGGER = 0.08;
 
-// Safari's engine, which every browser on an iPhone uses, drops a filter whose
-// element has 3D-transformed children.
+// Safari's engine, which every browser on an iPhone uses.
 const webkit =
   typeof navigator !== "undefined" &&
   /AppleWebKit/.test(navigator.userAgent) &&
@@ -149,14 +148,19 @@ const lineReveal = (
     );
   }
 
-  if (s.melt) {
+  const melt = { duration: s.duration * s.length, ease: s.ease };
+  if (s.melt && s.flip && webkit) {
+    // Safari draws nothing for the melt filter over 3D words, and inside each
+    // word's clip it cuts hard, so there the line blurs in plainly instead.
+    tl.from(
+      line,
+      { filter: `blur(${s.amount * fontSize}px)`, opacity: 0, ...melt },
+      0,
+    ).set(line, { filter: "none" });
+  } else if (s.melt) {
+    // On the line, outside the words' clips, the melt spills softly past them.
     const f = meltFilter(svg, fontSize, s);
-    const melt = { duration: s.duration * s.length, ease: s.ease };
-    // On the line, outside the words' clips, the melt spills softly past
-    // them. Safari would drop it there with the flip on, so in Safari it goes
-    // on the words, inside their clips.
-    const inked = s.flip && webkit ? words : line;
-    gsap.set(inked, { filter: f.url });
+    gsap.set(line, { filter: f.url });
     tl.from(
       f.blurs,
       { attr: { stdDeviation: s.amount * fontSize }, ...melt },
@@ -172,7 +176,7 @@ const lineReveal = (
         },
         melt.duration * 0.37,
       )
-      .set(inked, { filter: "none" });
+      .set(line, { filter: "none" });
   }
 
   return tl;

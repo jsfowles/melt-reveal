@@ -92,6 +92,13 @@ gsap.ticker.add((time) => lenis.raf(time * 1000));
 gsap.ticker.lagSmoothing(0);
 ```
 
+Keep Lenis to mice and trackpads. On a phone, native scrolling already glides, and smoothing it makes the page trail your finger. For a softer reveal there, lag the reveal instead and leave the scroll alone:
+
+```ts
+const touch = matchMedia("(pointer: coarse)").matches;
+meltReveal(el, { ...DEFAULTS, smooth: touch ? 0.6 : 0 });
+```
+
 </details>
 
 <details>
@@ -161,8 +168,9 @@ The playground's presets are good starting points: **Default** (the defaults, wi
 
 - SplitText labels the element with its full text, so screen readers read it as one paragraph.
 - Each line carries its own SVG filter until it lands, and blur gets expensive past about 20px. Keep `amount` × font size under that on big type, and lower on phones; the playground caps phones at 8px.
-- Words are flat until their line starts, so a long page doesn't pay for hundreds of 3D layers.
-- With the flip on, the filter goes on each word rather than the line, since Safari drops a filter over 3D-transformed children.
+- Lines wait flat and unfiltered until they start, so a long page doesn't pay for hundreds of 3D layers or filters.
+- The filter goes on the line, outside the words' clips, so the melt spills softly past them. Safari's engine, which every iPhone browser uses, draws nothing for it over the flip's 3D words, so there, with the flip on, the line blurs in plainly instead: soft, but without the dots.
+- Lines are measured when you call it. If something moves the page after that, like an intro that slides content in, call `ScrollTrigger.refresh()` once it settles, or lines start late.
 - Agents can read [llms.txt](https://melt-reveal.jsfowles.com/llms.txt), with the README and the source of `melt.ts` in one file at [llms-full.txt](https://melt-reveal.jsfowles.com/llms-full.txt).
 
 > [!NOTE]
