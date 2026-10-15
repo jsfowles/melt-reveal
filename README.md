@@ -1,10 +1,19 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="media/hero-dark.webp" />
+  <img src="media/hero-light.webp" alt="Two lines, Ink settles into type, flip up out of their clips and melt from a dot screen into crisp type" width="100%" />
+</picture>
+
 # Melt reveal
 
-A scroll text reveal. Each line flips up out of a clip while an SVG filter melts it from halftone ink into crisp type, scrubbed by your scroll.
+A scroll text reveal. Each line flips up out of a clip while an SVG filter melts its ink from a halftone dot screen into crisp type, scrubbed by your scroll.
 
-**[Play with it →](https://melt-reveal.jsfowles.com)**
+**[Play with it](https://melt-reveal.jsfowles.com)** · [Quick start](#quick-start) · [API](#api) · [Settings](#settings)
 
-It's one file, [`src/melt.ts`](src/melt.ts). GSAP is the only dependency.
+<sub>One file, <a href="src/melt.ts"><code>src/melt.ts</code></a>. GSAP is the only dependency.</sub>
+
+</div>
 
 ## Quick start
 
@@ -14,7 +23,10 @@ Install GSAP 3.13 or later. SplitText comes with it now, for free.
 npm install gsap
 ```
 
-Copy [`src/melt.ts`](src/melt.ts) into your project, or hit **Copy melt.ts** in the playground. It adds the little CSS it needs itself.
+Copy [`src/melt.ts`](src/melt.ts) into your project. It adds the little CSS it needs itself.
+
+> [!TIP]
+> Or hit **Copy melt.ts** in the playground, and **Copy settings** for the feel you tuned there.
 
 Then point it at some text:
 
@@ -29,6 +41,8 @@ document.fonts.ready.then(() => {
 ```
 
 Wait for your fonts first. The lines get measured when they split, and a fallback font measures differently.
+
+That's it. The rest is optional.
 
 ## Recipes
 
@@ -52,7 +66,18 @@ meltReveal(heading, { ...DEFAULTS, duration: 0.9 }, (tl) => tl.play());
 
 `meltReveal` returns an undo. Call it when the element goes away, like before a client-side page change. Resizing is handled for you.
 
-### Smooth scrolling
+### Reduced motion
+
+It doesn't check for you. Skip it and the text just sits there:
+
+```ts
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  meltReveal(el, DEFAULTS);
+}
+```
+
+<details>
+<summary><b>Smooth scrolling</b></summary>
 
 It works fine with plain scrolling. If you add [Lenis](https://github.com/darkroomengineering/lenis), run it on GSAP's ticker so they stay in sync:
 
@@ -66,6 +91,48 @@ lenis.on("scroll", ScrollTrigger.update);
 gsap.ticker.add((time) => lenis.raf(time * 1000));
 gsap.ticker.lagSmoothing(0);
 ```
+
+</details>
+
+<details>
+<summary><b>React</b></summary>
+
+```tsx
+import { useEffect, useRef } from "react";
+import { meltReveal, DEFAULTS } from "./melt";
+
+export const Reveal = ({ children }: { children: string }) => {
+  const el = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    let undo: (() => void) | undefined;
+    let gone = false;
+    document.fonts.ready.then(() => {
+      if (!gone) undo = meltReveal(el.current!, DEFAULTS);
+    });
+    return () => {
+      gone = true;
+      undo?.();
+    };
+  }, [children]);
+
+  return <p ref={el}>{children}</p>;
+};
+```
+
+Same idea anywhere else: start it once the fonts are in, undo it when it goes away.
+
+</details>
+
+## API
+
+| Call                              | Does                                                                                 |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| `meltReveal(el, settings)`        | Reveals each line of `el` as it scrolls through the screen. Returns an undo.         |
+| `meltReveal(el, settings, build)` | Comes off the scroll: `build` gets a paused timeline of every line. Returns an undo. |
+| `DEFAULTS`                        | The default settings, to spread your changes over.                                   |
+
+`build` runs again whenever the text re-splits, on a resize or a font swap, with a fresh timeline.
 
 ## Settings
 
@@ -88,12 +155,18 @@ gsap.ticker.lagSmoothing(0);
 | `hardness`    | `27.5`       | 1–60       | How sharp the edge is. Low gets cloudy.                    |
 | `length`      | `1.3`        | 0.3–3×     | How long the melt runs compared to the flip.               |
 
+The playground's presets are good starting points: **Default** (the defaults, with a 1s flip), **Wordmark** (coarser dots, lighter blur), **Halftone** (coarse dots, softer edge), **Flip only** and **Ink only**.
+
 ## Good to know
 
-- It doesn't check reduced motion for you. Skip `meltReveal` when `prefers-reduced-motion` is set and the text just sits there.
 - SplitText labels the element with its full text, so screen readers read it as one paragraph.
-- Each line carries its own SVG filter until it's done, and blur gets expensive past about 20px. Keep `amount × font size` under that on big type.
-- I built it on plain paragraphs in Chrome. Check Safari, Firefox and any inline markup you've got.
+- Each line carries its own SVG filter until it lands, and blur gets expensive past about 20px. Keep `amount` × font size under that on big type, and lower on phones; the playground caps phones at 8px.
+- Words are flat until their line starts, so a long page doesn't pay for hundreds of 3D layers.
+- With the flip on, the filter goes on each word rather than the line, since Safari drops a filter over 3D-transformed children.
+- Agents can read [llms.txt](https://melt-reveal.jsfowles.com/llms.txt), with the README and the source of `melt.ts` in one file at [llms-full.txt](https://melt-reveal.jsfowles.com/llms-full.txt).
+
+> [!NOTE]
+> I've tested it in Chrome and iOS Safari, on plain paragraphs. Check Firefox and any inline markup you've got.
 
 ## The playground
 
@@ -102,7 +175,7 @@ npm install
 npm run dev
 ```
 
-It's an Astro page. `npm run check` typechecks and formats. The effect is `src/melt.ts`; everything else is the playground.
+It's an Astro page. Scroll to proof the reveal, scrub the inspector line to step through one, and tune it in the settings, a side column on desktop and a dock of tabs on a phone. `npm run check` typechecks and formats. The effect is `src/melt.ts`, everything else is the playground.
 
 ## License
 
