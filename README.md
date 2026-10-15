@@ -162,7 +162,7 @@ The playground's presets are good starting points: **Default** (the defaults, wi
 ## Good to know
 
 - SplitText labels the element with its full text, so screen readers read it as one paragraph.
-- The melt runs in WebGL. A line mid-reveal has its text drawn once into a texture, then each frame its words are tipped, blurred, screened with dots and cut in shaders, so it holds 60fps in Safari and on iPhones too. Its own text stays in the page for layout, selection and screen readers, hidden until the line lands. Lines waiting or landed cost nothing.
+- The melt runs in WebGL. Lines have their text drawn into textures eight at a time, ahead of the start rule in frames with time to spare, since in Safari a texture upload costs about the same whatever its size. Each frame every line mid-reveal is tipped, blurred, screened with dots and cut in shaders, in four passes however many lines melt, onto a canvas only as tall as the band of lines melting. So it holds 60fps in Safari, and a phone has far less to do. Its own text stays in the page for layout, selection and screen readers, hidden until the line lands. Lines waiting or landed cost nothing.
 - The canvas goes in the text's layer: the nearest positioned ancestor with a `z-index`, or the page. So the melt paints over the text and under whatever covers it, like a sticky header. It isn't clipped by an `overflow: hidden` box in between, though.
 - Only the glyphs are drawn, in each text node's font and colour. Underlines, backgrounds and shadows on inline markup disappear while a line melts and come back when it lands.
 - The melt is drawn over the line, outside the words' clips, so it spills softly past them.

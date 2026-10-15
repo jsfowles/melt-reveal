@@ -220,17 +220,25 @@ type Word = {
   wh: number;
 };
 
-// The line's text, drawn at rest: `x`/`y` its corner in CSS px from the
-// line's, `fx`/`fy` the fraction of a device pixel it was drawn offset by.
-type Picture = {
+// A run of lines drawn at rest into one texture, its texels on the page's
+// device pixels. One upload serves them all: in Safari an upload costs about
+// the same whatever its size.
+type Chunk = {
   texture: WebGLTexture;
-  x: number;
-  y: number;
   width: number;
   height: number;
-  fx: number;
-  fy: number;
+  lines: Line[];
+};
+
+// Where a line's text sits in its chunk: `x`/`y` the texture's corner in CSS
+// px from the line's, `dpr` the texture's texels per CSS px, `forDpr` the
+// screen's when it was drawn.
+type Picture = {
+  chunk: Chunk;
+  x: number;
+  y: number;
   dpr: number;
+  forDpr: number;
   lineWidth: number;
   lineHeight: number;
   words: Word[];
@@ -265,20 +273,13 @@ void main() {
   gl_Position = vec4(px.x / target.x * 2.0 - 1.0, 1.0 - px.y / target.y * 2.0, 0.0, 1.0);
 }`;
 
-const FULL = `#version 300 es
-in vec2 corner;
-out vec2 uv;
-void main() {
-  uv = corner;
-  gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
-}`;
-
 const HEADER = `#version 300 es
 precision highp float;
 out vec4 color;`;
 
 // A word, tipped: each point of its clip is traced back through the 3D
-// transform to the word's own point, and read from the line's picture.
+// transform to the word's own point, and read from the line's picture. The
+// picture is straight alpha, so it's premultiplied here.
 const WORD = `${HEADER}
 in vec2 p;
 uniform sampler2D text;
@@ -293,18 +294,21 @@ void main() {
   vec2 q = h.xy / h.z;
   float inside = step(0.0, dot(depth, vec3(q, 1.0))) *
     step(box.x, q.x) * step(q.x, box.z) * step(box.y, q.y) * step(q.y, box.w);
-  color = texture(text, (q * place.x + place.yz) / textSize) * inside;
+  vec4 ink = texture(text, (q * place.x + place.yz) / textSize);
+  color = vec4(ink.rgb * ink.a, ink.a) * inside;
 }`;
 
-// One direction of a Gaussian blur, of premultiplied colour.
+// One direction of a Gaussian blur, of premultiplied colour, over one line's
+// slot in the shared target. Reads clamp to the slot, so the lines beside it
+// never bleed in.
 const BLUR = `${HEADER}
-in vec2 uv;
+in vec2 p;
 uniform sampler2D field;
-uniform vec2 uvScale, uvMax, direction;
+uniform vec2 fieldSize, slotMin, slotMax, direction;
 uniform float sigma;
-vec4 at(vec2 p) { return texture(field, clamp(p, vec2(0.0), uvMax)); }
+vec4 at(vec2 t) { return texture(field, clamp(t, slotMin, slotMax) / fieldSize); }
 void main() {
-  vec2 here = uv * uvScale;
+  vec2 here = vec2(p.x, fieldSize.y - p.y);
   vec4 sum = at(here);
   float total = 1.0, falloff = -0.5 / (sigma * sigma);
   int reach = int(ceil(sigma * 3.0));
@@ -323,12 +327,13 @@ void main() {
 const CUT = `${HEADER}
 in vec2 p;
 uniform sampler2D field;
-uniform vec2 fieldScale, regionSize;
+uniform vec2 fieldSize, fieldOrigin, fieldScale, regionSize;
 uniform vec3 toRegion;
 uniform float dotSize, k3, k4, hardness, opacity;
 void main() {
   vec2 px = p * toRegion.x + toRegion.yz;
-  vec4 ink = texture(field, vec2(px.x, regionSize.y - px.y) * fieldScale);
+  vec2 t = fieldOrigin + vec2(px.x, regionSize.y - px.y) * fieldScale;
+  vec4 ink = texture(field, t / fieldSize);
   float dots = max(0.0, 1.0 - 2.0 * length(fract(p / dotSize) - 0.5));
   float shape = clamp(ink.a + k3 * dots + k4, 0.0, 1.0);
   float cut = clamp(hardness * (shape - 0.5) + 0.5, 0.0, 1.0);
@@ -461,6 +466,40 @@ const getScratch = () => {
   return (scratchPad = { scratch, ink, spaced });
 };
 
+// Lines drawn into one texture at a time, and the most it may be tall.
+const CHUNK = 8;
+const CHUNK_HEIGHT = 2048;
+// The pictures kept, in texels: about 32MB.
+const KEEP_TEXELS = 8_000_000;
+// Texels between lines' slots in the blur targets.
+const GAP = 2;
+// Milliseconds a frame may have spent before painting ahead waits for
+// another, unless a line is about to need its picture.
+const PREPAINT_BUDGET = 4;
+
+type Rect = { left: number; top: number; bottom: number };
+type Spot = {
+  line: Line;
+  box: DOMRect;
+  lx: number;
+  ly: number;
+  opacity: number;
+};
+type Slot = {
+  spot: Spot;
+  rx: number;
+  ry: number;
+  rw: number;
+  rh: number;
+  sigma: number;
+  shrink: number;
+  lw: number;
+  lh: number;
+  sx: number;
+  sy: number;
+  any: boolean;
+};
+
 // A canvas in `host`, the layer the text paints in, or in the page.
 const createGpu = (host: HTMLElement | null): Gpu | null => {
   const canvas = document.createElement("canvas");
@@ -473,7 +512,7 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
   });
   if (!gl) return null;
   const word = createPass(gl, VERTEX, WORD);
-  const blur = createPass(gl, FULL, BLUR);
+  const blur = createPass(gl, VERTEX, BLUR);
   const cut = createPass(gl, VERTEX, CUT);
   if (!word || !blur || !cut) return null;
 
@@ -494,11 +533,17 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
   gl.enableVertexAttribArray(0);
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  // The text comes up straight alpha and is premultiplied in the shader:
+  // asking WebGL to premultiply sends Safari down a path three times slower.
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  const maxTexture = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
+  const maxAtlas = Math.min(4096, maxTexture);
 
   // Two scratch targets the blur goes back and forth between, grown as
-  // needed. Half floats where they can be drawn to, so the hard cut doesn't
-  // band.
+  // needed, with every line mid-reveal in its own slot so each frame is four
+  // passes however many lines melt: a phone's GPU starts a pass over at every
+  // switch of target. Half floats where they can be drawn to, so the hard cut
+  // doesn't band.
   const half = !!gl.getExtension("EXT_color_buffer_float");
   const targets = [0, 1].map(() => {
     const texture = gl.createTexture()!;
@@ -538,11 +583,12 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
   };
 
   const lines = new Set<Line>();
+  // Each root's lines, in page order.
+  const runs = new Map<HTMLElement, Line[]>();
   const dirty = new Set<Line>();
   const drawing = new Set<Line>();
-  // Pictures kept for lines that have landed, in case you scroll back.
-  const kept: Line[] = [];
-  const KEEP = 24;
+  // Chunks kept for lines that have landed or are coming up, newest last.
+  const kept: Chunk[] = [];
   const { scratch, ink, spaced } = getScratch();
   const range = document.createRange();
 
@@ -553,9 +599,11 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
   let height = 0;
   let dpr = 1;
   let tallest = 0;
+  let spare = 0;
   let left = 0;
   let top = 0;
   let areaHeight = 0;
+  let lastScroll = scrollY;
 
   // Where the page puts the baseline below the top of a run of text, found
   // once per font with an empty box sat on it: a canvas measures it a little
@@ -574,24 +622,22 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
     return ascent;
   };
 
-  const forget = (line: Line) => {
-    if (line.picture) gl.deleteTexture(line.picture.texture);
-    line.picture = null;
+  const forget = (chunk: Chunk) => {
+    gl.deleteTexture(chunk.texture);
+    for (const line of chunk.lines)
+      if (line.picture?.chunk === chunk) line.picture = null;
+    const i = kept.indexOf(chunk);
+    if (i >= 0) kept.splice(i, 1);
   };
+  const keptTexels = () => kept.reduce((n, c) => n + c.width * c.height, 0);
 
-  // Draws the line's text at rest, as the page lays it out, into a texture.
-  const paint = (line: Line, box: DOMRect, fx: number, fy: number) => {
-    forget(line);
+  // A line's words and their clips, from its box.
+  const wordsOf = (line: Line, box: DOMRect) => {
     const words: Word[] = [];
-    let x0 = Infinity;
-    let y0 = Infinity;
-    let x1 = -Infinity;
-    let y1 = -Infinity;
-    const wordEls = line.line.querySelectorAll<HTMLElement>(".melt-word");
-    for (const el of wordEls) {
+    for (const el of line.line.querySelectorAll<HTMLElement>(".melt-word")) {
       const clip = (el.parentElement ?? el).getBoundingClientRect();
       const own = el.getBoundingClientRect();
-      const w = {
+      words.push({
         mx: clip.left - box.left,
         my: clip.top - box.top,
         mw: clip.width,
@@ -600,71 +646,129 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
         wy: own.top - clip.top,
         ww: own.width,
         wh: own.height,
-      };
-      words.push(w);
-      x0 = Math.min(x0, w.mx);
-      y0 = Math.min(y0, w.my);
-      x1 = Math.max(x1, w.mx + w.mw);
-      y1 = Math.max(y1, w.my + w.mh);
+      });
     }
-    if (!words.length) return;
-    // A margin wide enough for descenders and overhangs, starting on a whole
-    // device pixel so at rest each texel lands on one.
-    const margin = 0.3 * line.em;
-    const x = Math.floor((x0 - margin) * dpr) / dpr;
-    const y = Math.floor((y0 - margin) * dpr) / dpr;
-    scratch.width = Math.ceil((x1 + margin - x) * dpr) + 1;
-    scratch.height = Math.ceil((y1 + margin - y) * dpr) + 1;
-    ink.setTransform(dpr, 0, 0, dpr, fx - x * dpr, fy - y * dpr);
+    return words;
+  };
 
-    for (const el of wordEls) {
-      const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      for (let node: Node | null; (node = walk.nextNode());) {
-        const text = node as Text;
-        const css = getComputedStyle(text.parentElement!);
-        const content = textOf(text, css.textTransform);
-        if (!content.trim()) continue;
-        const smoothing = css.getPropertyValue("-webkit-font-smoothing");
-        if (
-          smoothing &&
-          scratch.style.getPropertyValue("-webkit-font-smoothing") !== smoothing
-        ) {
-          scratch.style.setProperty("-webkit-font-smoothing", smoothing);
-          ink.font = "10px serif";
-        }
-        ink.font = `${css.fontStyle} ${css.fontWeight} ${css.fontSize} ${css.fontFamily}`;
-        ink.fillStyle = css.color;
-        const spacing =
-          css.letterSpacing === "normal" ? "0px" : css.letterSpacing;
-        if (spaced) ink.letterSpacing = spacing;
-        range.selectNodeContents(text);
-        const at = range.getBoundingClientRect();
-        // On a whole device pixel, as the page draws it.
-        const baseline =
-          (Math.round(
-            (at.top - box.top + ascentOf(text, ink.font, at.top) - y) * dpr +
-              fy,
-          ) -
-            fy) /
-            dpr +
-          y;
-        if (spaced || parseFloat(spacing) === 0) {
-          ink.fillText(content, at.left - box.left, baseline);
-          continue;
-        }
-        // No letter spacing on a canvas here, so each letter goes where the
-        // page put it.
-        for (let i = 0; i < text.length;) {
-          const size = text.data.codePointAt(i)! > 0xffff ? 2 : 1;
-          range.setStart(text, i);
-          range.setEnd(text, i + size);
-          const letter = range.getBoundingClientRect();
-          ink.fillText(
-            content.slice(i, i + size),
-            letter.left - box.left,
-            baseline,
-          );
-          i += size;
+  // Draws the text of a run of lines at rest, as the page lays it out, into
+  // one texture: `first` and the lines after it down the page (or up it, when
+  // `up`) that have no picture yet, as many as fit.
+  const paintChunk = (first: Line, up = false) => {
+    const run = runs.get(first.root) ?? [first];
+    // Each line gets a strip of the texture to itself, with a gap: a word
+    // reads a little past its own edges for descenders and overhangs, and
+    // must find nothing of the line next to it there.
+    type Member = {
+      line: Line;
+      box: DOMRect;
+      words: Word[];
+      top: number;
+      bottom: number;
+      gap: number;
+      offset: number;
+    };
+    const members: Member[] = [];
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let stack = 0;
+    for (
+      let i = run.indexOf(first);
+      i >= 0 && i < run.length && members.length < CHUNK;
+      i += up ? -1 : 1
+    ) {
+      const line = run[i];
+      if (line !== first && line.picture) break;
+      const box = line.line.getBoundingClientRect();
+      const words = wordsOf(line, box);
+      if (!box.width || !words.length) break;
+      // A margin wide enough for descenders and overhangs.
+      const margin = 0.3 * line.em;
+      let lx0 = Infinity;
+      let ly0 = Infinity;
+      let lx1 = -Infinity;
+      let ly1 = -Infinity;
+      for (const w of words) {
+        lx0 = Math.min(lx0, w.mx);
+        ly0 = Math.min(ly0, w.my);
+        lx1 = Math.max(lx1, w.mx + w.mw);
+        ly1 = Math.max(ly1, w.my + w.mh);
+      }
+      const top = box.top + scrollY + ly0 - margin;
+      const bottom = box.top + scrollY + ly1 + margin;
+      const gap = 0.15 * line.em;
+      if (members.length && (stack + bottom - top) * dpr > CHUNK_HEIGHT) break;
+      members.push({ line, box, words, top, bottom, gap, offset: 0 });
+      stack += bottom - top + gap;
+      x0 = Math.min(x0, box.left + scrollX + lx0 - margin);
+      x1 = Math.max(x1, box.left + scrollX + lx1 + margin);
+    }
+    if (!members.length) return;
+
+    // The texture's left edge on a whole device pixel of the page, and each
+    // strip a whole number of device pixels down from where the page has its
+    // line, so at rest each texel lands on one. Type too big for a texture
+    // gets a softer picture rather than none.
+    let pdpr = dpr;
+    const need = Math.max(x1 - x0, stack) * dpr + 2;
+    if (need > maxTexture) pdpr = (dpr * (maxTexture - 2)) / need;
+    const cx = Math.floor(x0 * pdpr) / pdpr;
+    let ty = 0;
+    for (const m of members) {
+      m.offset = Math.ceil((ty - m.top) * pdpr) / pdpr;
+      ty = m.bottom + m.offset + m.gap;
+    }
+    scratch.width = Math.ceil((x1 - cx) * pdpr) + 1;
+    scratch.height = Math.ceil(ty * pdpr) + 1;
+
+    for (const { line, offset } of members) {
+      ink.setTransform(pdpr, 0, 0, pdpr, -cx * pdpr, offset * pdpr);
+      for (const el of line.line.querySelectorAll<HTMLElement>(".melt-word")) {
+        const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        for (let node: Node | null; (node = walk.nextNode());) {
+          const text = node as Text;
+          const css = getComputedStyle(text.parentElement!);
+          const content = textOf(text, css.textTransform);
+          if (!content.trim()) continue;
+          const smoothing = css.getPropertyValue("-webkit-font-smoothing");
+          if (
+            smoothing &&
+            scratch.style.getPropertyValue("-webkit-font-smoothing") !==
+              smoothing
+          ) {
+            scratch.style.setProperty("-webkit-font-smoothing", smoothing);
+            ink.font = "10px serif";
+          }
+          ink.font = `${css.fontStyle} ${css.fontWeight} ${css.fontSize} ${css.fontFamily}`;
+          ink.fillStyle = css.color;
+          const spacing =
+            css.letterSpacing === "normal" ? "0px" : css.letterSpacing;
+          if (spaced) ink.letterSpacing = spacing;
+          range.selectNodeContents(text);
+          const at = range.getBoundingClientRect();
+          // On a whole device pixel, as the page draws it.
+          const baseline =
+            Math.round(
+              (at.top + scrollY + ascentOf(text, ink.font, at.top)) * pdpr,
+            ) / pdpr;
+          if (spaced || parseFloat(spacing) === 0) {
+            ink.fillText(content, at.left + scrollX, baseline);
+            continue;
+          }
+          // No letter spacing on a canvas here, so each letter goes where
+          // the page put it.
+          for (let i = 0; i < text.length;) {
+            const size = text.data.codePointAt(i)! > 0xffff ? 2 : 1;
+            range.setStart(text, i);
+            range.setEnd(text, i + size);
+            const letter = range.getBoundingClientRect();
+            ink.fillText(
+              content.slice(i, i + size),
+              letter.left + scrollX,
+              baseline,
+            );
+            i += size;
+          }
         }
       }
     }
@@ -688,47 +792,90 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    line.picture = {
+    const chunk: Chunk = {
       texture,
-      x,
-      y,
       width: scratch.width,
       height: scratch.height,
-      fx,
-      fy,
-      dpr,
-      lineWidth: box.width,
-      lineHeight: box.height,
-      words,
+      lines: members.map((m) => m.line),
     };
+    for (const { line, box, words, offset } of members)
+      line.picture = {
+        chunk,
+        x: cx - (box.left + scrollX),
+        y: -(box.top + scrollY + offset),
+        dpr: pdpr,
+        forDpr: dpr,
+        lineWidth: box.width,
+        lineHeight: box.height,
+        words,
+      };
+    kept.push(chunk);
+    // The oldest chunks go once they'd hold too much, unless a line is
+    // drawn from them or within a screen of being.
+    for (let i = 0; keptTexels() > KEEP_TEXELS && i < kept.length;) {
+      const old = kept[i];
+      if (
+        old === chunk ||
+        old.lines.some(
+          (line) => drawing.has(line) || Math.abs(distOf(line)) <= innerHeight,
+        )
+      )
+        i++;
+      else forget(old);
+    }
   };
 
-  // Draws one line onto the canvas, its corner at (lx, ly) device px.
-  const draw = (line: Line, lx: number, ly: number, opacity: number) => {
+  // How far the scroll is from a line starting: positive below the start
+  // rule, negative once it has landed, zero mid-reveal or when it's played
+  // rather than scrubbed.
+  const distOf = (line: Line) => {
+    const st = line.tl.scrollTrigger;
+    if (!st) return 0;
+    return scrollY < st.start
+      ? st.start - scrollY
+      : scrollY > st.end
+        ? st.end - scrollY
+        : 0;
+  };
+
+  // The line nearest to starting, or starting again, that has no picture
+  // yet, within a screen's scroll of doing so in the direction of scroll. A
+  // line played rather than scrubbed is always next.
+  const upcoming = (down: boolean) => {
+    let best: Line | undefined;
+    let bestDist = Infinity;
+    for (const line of lines) {
+      if (line.picture || drawing.has(line)) continue;
+      const dist = distOf(line);
+      if (Math.abs(dist) > innerHeight || (down ? dist < 0 : dist > 0))
+        continue;
+      if (Math.abs(dist) < Math.abs(bestDist)) {
+        best = line;
+        bestDist = dist;
+      }
+    }
+    return best && { line: best, dist: bestDist };
+  };
+
+  // Paints the pictures a line will need before it needs them, one chunk a
+  // frame, in frames with time to spare.
+  const prepaint = (spent: number, down: boolean) => {
+    const next = upcoming(down);
+    if (!next) return false;
+    if (spent > PREPAINT_BUDGET && Math.abs(next.dist) > innerHeight / 4)
+      return false;
+    paintChunk(next.line, next.dist < 0);
+    return true;
+  };
+
+  // Draws the words of one line's slot, tipped. Whether any was drawn.
+  const drawWords = (slot: Slot) => {
+    const { line, lx, ly } = slot.spot;
     const { s, m, em, picture } = line;
-    if (!picture) return;
-    const { lineWidth: w, lineHeight: h } = picture;
+    if (!picture) return false;
     const perspective = s.perspective * em;
     const depth = s.depth * em;
-    // The region the melt may spill into, in device px from the canvas.
-    const rx = Math.floor(lx - SPILL.x * w * dpr);
-    const ry = Math.floor(ly - SPILL.y * h * dpr);
-    const rw = Math.ceil((1 + 2 * SPILL.x) * w * dpr) + 2;
-    const rh = Math.ceil((1 + 2 * SPILL.y) * h * dpr) + 2;
-    // Blurred, it's drawn smaller, and the blur with it.
-    const sigma = m.blur * dpr;
-    const shrink = Math.max(1, sigma / 4);
-    const lw = Math.ceil(rw / shrink);
-    const lh = Math.ceil(rh / shrink);
-    fit(lw, lh);
-    const [a, b] = targets;
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, a.buffer);
-    gl.viewport(0, 0, lw, lh);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.enable(gl.BLEND);
-    const toRegion = [dpr, lx - rx, ly - ry];
+    const toRegion = [dpr, lx - slot.rx, ly - slot.ry];
     const padX = 0.08 * em;
     const padY = 0.15 * em;
     let any = false;
@@ -762,7 +909,7 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
         continue;
       any = true;
       word(
-        { text: picture.texture },
+        { text: picture.chunk.texture },
         {
           quad: [
             wd.mx - padX,
@@ -771,67 +918,145 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
             wd.my + wd.mh + padY,
           ],
           toPx: toRegion,
-          target: [rw, rh],
+          target: [slot.rw, slot.rh],
           unproject,
           depth: forward[2],
           clipCorner: [wd.mx, wd.my],
           box: [-padX, -0.3 * em, wd.ww + padX, wd.wh + 0.3 * em],
           place: [
             picture.dpr,
-            (wd.mx + wd.wx - picture.x) * picture.dpr + picture.fx,
-            (wd.my + wd.wy - picture.y) * picture.dpr + picture.fy,
+            (wd.mx + wd.wx - picture.x) * picture.dpr,
+            (wd.my + wd.wy - picture.y) * picture.dpr,
           ],
-          textSize: [picture.width, picture.height],
+          textSize: [picture.chunk.width, picture.chunk.height],
         },
       );
     }
-    if (!any) return;
-    gl.disable(gl.BLEND);
+    return any;
+  };
 
-    const scale = [lw / a.width, lh / a.height];
-    const max = [(lw - 0.5) / a.width, (lh - 0.5) / a.height];
-    if (sigma / shrink > 0.2) {
-      for (const [from, to, direction] of [
-        [a, b, [1 / a.width, 0]],
-        [b, a, [0, 1 / a.height]],
-      ] as const) {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, to.buffer);
-        blur(
-          { field: from.texture },
-          {
-            uvScale: scale,
-            uvMax: max,
-            direction: [...direction],
-            sigma: sigma / shrink,
-          },
-        );
+  // Draws every line mid-reveal onto the canvas, in four passes: the words
+  // tipped into their slots, the blur across, the blur down, and the cut.
+  const render = (spots: Spot[]) => {
+    // A slot for each line's region, shrunk along with its blur, in rows.
+    const slots: Slot[] = [];
+    let x = 0;
+    let y = 0;
+    let rowHeight = 0;
+    let atlasWidth = 0;
+    for (const spot of spots) {
+      const { picture, m } = spot.line;
+      if (!picture) continue;
+      const { lineWidth: w, lineHeight: h } = picture;
+      // The region the melt may spill into, in device px from the canvas.
+      const rx = Math.floor(spot.lx - SPILL.x * w * dpr);
+      const ry = Math.floor(spot.ly - SPILL.y * h * dpr);
+      const rw = Math.ceil((1 + 2 * SPILL.x) * w * dpr) + 2;
+      const rh = Math.ceil((1 + 2 * SPILL.y) * h * dpr) + 2;
+      // Blurred, it's drawn smaller, and the blur with it.
+      const sigma = m.blur * dpr;
+      const shrink = Math.max(1, sigma / 4);
+      const lw = Math.ceil(rw / shrink);
+      const lh = Math.ceil(rh / shrink);
+      if (x > 0 && x + lw > maxAtlas) {
+        x = 0;
+        y += rowHeight + GAP;
+        rowHeight = 0;
       }
+      if (y + lh > maxTexture) break;
+      slots.push({
+        spot,
+        rx,
+        ry,
+        rw,
+        rh,
+        sigma,
+        shrink,
+        lw,
+        lh,
+        sx: x,
+        sy: y,
+        any: false,
+      });
+      x += lw + GAP;
+      atlasWidth = Math.max(atlasWidth, x - GAP);
+      rowHeight = Math.max(rowHeight, lh);
+    }
+    if (slots.length) {
+      fit(atlasWidth, y + rowHeight);
+      const [a, b] = targets;
+      const size = [a.width, a.height];
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, a.buffer);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.enable(gl.BLEND);
+      for (const slot of slots) {
+        gl.viewport(slot.sx, slot.sy, slot.lw, slot.lh);
+        slot.any = drawWords(slot);
+      }
+
+      gl.disable(gl.BLEND);
+      gl.viewport(0, 0, a.width, a.height);
+      const blurred = slots.filter((s) => s.any && s.sigma / s.shrink > 0.2);
+      if (blurred.length)
+        for (const [from, to, direction] of [
+          [a, b, [1, 0]],
+          [b, a, [0, 1]],
+        ] as const) {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, to.buffer);
+          for (const { sx, sy, lw, lh, sigma, shrink } of blurred)
+            blur(
+              { field: from.texture },
+              {
+                quad: [sx, a.height - sy - lh, sx + lw, a.height - sy],
+                toPx: [1, 0, 0],
+                target: size,
+                fieldSize: size,
+                slotMin: [sx + 0.5, sy + 0.5],
+                slotMax: [sx + lw - 0.5, sy + lh - 0.5],
+                direction: [...direction],
+                sigma: sigma / shrink,
+              },
+            );
+        }
     }
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
     gl.enable(gl.BLEND);
-    cut(
-      { field: a.texture },
-      {
-        quad: [
-          -SPILL.x * w,
-          -SPILL.y * h,
-          (1 + SPILL.x) * w,
-          (1 + SPILL.y) * h,
-        ],
-        toPx: [dpr, lx, ly],
-        target: [canvas.width, canvas.height],
-        toRegion,
-        regionSize: [rw, rh],
-        fieldScale: [lw / rw / a.width, lh / rh / a.height],
-        dotSize: Math.max(2, s.dotSize * em),
-        k3: m.dots,
-        k4: -m.dots / 2,
-        hardness: m.hard,
-        opacity,
-      },
-    );
+    const a = targets[0];
+    for (const slot of slots) {
+      if (!slot.any) continue;
+      const { line, lx, ly, opacity } = slot.spot;
+      const { s, m, em, picture } = line;
+      const { lineWidth: w, lineHeight: h } = picture!;
+      cut(
+        { field: a.texture },
+        {
+          quad: [
+            -SPILL.x * w,
+            -SPILL.y * h,
+            (1 + SPILL.x) * w,
+            (1 + SPILL.y) * h,
+          ],
+          toPx: [dpr, lx, ly],
+          target: [canvas.width, canvas.height],
+          toRegion: [dpr, lx - slot.rx, ly - slot.ry],
+          regionSize: [slot.rw, slot.rh],
+          fieldSize: [a.width, a.height],
+          fieldOrigin: [slot.sx, slot.sy],
+          fieldScale: [slot.lw / slot.rw, slot.lh / slot.rh],
+          dotSize: Math.max(2, s.dotSize * em),
+          k3: m.dots,
+          k4: -m.dots / 2,
+          hardness: m.hard,
+          opacity,
+        },
+      );
+    }
   };
 
   const opacityOf = (el: HTMLElement) => {
@@ -847,7 +1072,13 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
     canvas.style.display = "none";
   };
 
+  const sleep = () => {
+    gsap.ticker.remove(frame);
+    awake = false;
+  };
+
   const frame = () => {
+    const t0 = performance.now();
     // A line shows its own text once it lands, the same frame the canvas
     // stops drawing it.
     for (const line of dirty) {
@@ -861,10 +1092,13 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
     }
     const changed = dirty.size > 0;
     dirty.clear();
+    const down = scrollY >= lastScroll;
+    lastScroll = scrollY;
     if (!drawing.size) {
       hide();
-      gsap.ticker.remove(frame);
-      awake = false;
+      // Paint ahead while there's a line coming, then sleep until the next
+      // scroll or reveal.
+      if (!prepaint(0, down)) sleep();
       return;
     }
 
@@ -886,22 +1120,37 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
     }
     if (!visible.length) {
       hide();
+      prepaint(0, down);
       return;
     }
 
-    // As wide as the page, and as tall as the screen has been.
+    // As wide as the page, and as tall as the band of lines mid-reveal has
+    // been, with room to scroll on before it has to move.
     const ratio = devicePixelRatio || 1;
     const areaWidth = document.documentElement.clientWidth;
+    const need = Math.min(
+      innerHeight,
+      Math.ceil(below - above + innerHeight / 5),
+    );
+    // A canvas left tall by a band since gone, like the title's and the
+    // first lines' together as the page opens, shrinks back once the band
+    // has been a room shorter for a while.
+    if (shown && need < tallest - innerHeight / 5) {
+      if (++spare > 90) {
+        tallest = need;
+        spare = 0;
+      }
+    } else spare = 0;
     let redraw = changed;
     if (
       !shown ||
       areaWidth !== width ||
       ratio !== dpr ||
-      innerHeight > tallest ||
+      need > tallest ||
       Math.min(tallest, areaHeight) !== height
     ) {
       if (areaWidth !== width || ratio !== dpr) tallest = 0;
-      tallest = Math.max(tallest, innerHeight);
+      tallest = Math.max(tallest, need);
       dpr = ratio;
       width = areaWidth;
       canvas.style.display = "none";
@@ -917,18 +1166,22 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
       redraw = true;
     }
 
-    // Kept over the lines it draws, without ever reaching past the page,
-    // and on whole device pixels so the text lands on the page's.
-    let at = canvas.getBoundingClientRect();
-    const snap = (n: number) => Math.ceil(n * dpr - 0.01) / dpr;
+    // Kept over the band, with its slack ahead in the direction of scroll,
+    // without ever reaching past the page, and on whole device pixels of the
+    // page so its texels land on the page's. Chrome reports a place to the
+    // nearest 1/64 px, which isn't a reason to move.
+    let at: Rect = canvas.getBoundingClientRect();
+    const snap = (n: number) => Math.round(n * dpr) / dpr;
+    const off = (n: number) => Math.abs(snap(n) - n) > 1 / 32;
     const moved = above < at.top || below > at.bottom;
-    if (moved || snap(at.top) !== at.top || snap(at.left) !== at.left) {
-      const want = moved ? (above + below) / 2 - height / 2 : at.top;
+    if (moved || off(at.top + scrollY) || off(at.left + scrollX)) {
+      const slack = Math.max(0, height - (below - above));
+      const want = moved ? above - slack * (down ? 0.25 : 0.75) : at.top;
       const y = snap(
-        Math.max(-scrollY, Math.min(want, areaHeight - height - scrollY)),
+        Math.max(0, Math.min(want + scrollY, areaHeight - height)),
       );
-      left += snap(-scrollX) - at.left;
-      top += y - at.top;
+      left -= at.left + scrollX;
+      top += y - (at.top + scrollY);
       canvas.style.left = `${left}px`;
       canvas.style.top = `${top}px`;
       at = canvas.getBoundingClientRect();
@@ -936,7 +1189,7 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
     }
 
     const opacities = new Map<HTMLElement, number>();
-    const spots = visible.map(([line, box]) => {
+    const spots: Spot[] = visible.map(([line, box]) => {
       if (!opacities.has(line.root))
         opacities.set(line.root, opacityOf(line.root));
       const lx = (box.left - at.left) * dpr;
@@ -948,32 +1201,25 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
       line.drawn = state;
       return { line, box, lx, ly, opacity };
     });
-    if (!redraw) return;
+    if (!redraw) {
+      prepaint(performance.now() - t0, down);
+      return;
+    }
 
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    for (const { line, box, lx, ly, opacity } of spots) {
+    for (const { line, box } of spots) {
       const p = line.picture;
       if (
         !p ||
-        p.dpr !== dpr ||
+        p.forDpr !== dpr ||
         Math.abs(p.lineWidth - box.width) > 0.5 ||
         Math.abs(p.lineHeight - box.height) > 0.5
       ) {
-        paint(line, box, lx - Math.floor(lx), ly - Math.floor(ly));
-        const i = kept.indexOf(line);
-        if (i >= 0) kept.splice(i, 1);
-        kept.push(line);
-        while (kept.length > KEEP) {
-          const old = kept.findIndex((k) => !drawing.has(k));
-          if (old < 0) break;
-          forget(kept.splice(old, 1)[0]);
-        }
+        if (p) forget(p.chunk);
+        paintChunk(line, !down);
       }
-      draw(line, lx, ly, opacity);
     }
+    render(spots);
+    prepaint(performance.now() - t0, down);
   };
 
   const wake = () => {
@@ -981,6 +1227,8 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
     awake = true;
     gsap.ticker.add(frame);
   };
+  // A scroll may bring a line within reach of starting.
+  addEventListener("scroll", wake, { passive: true });
 
   // If the GPU goes away, every line shows its own text, still.
   canvas.addEventListener("webglcontextlost", () => {
@@ -993,6 +1241,9 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
   return {
     add: (line) => {
       lines.add(line);
+      const run = runs.get(line.root);
+      if (run) run.push(line);
+      else runs.set(line.root, [line]);
       dirty.add(line);
       wake();
     },
@@ -1002,12 +1253,16 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
     },
     drop: (line) => {
       lines.delete(line);
+      const run = runs.get(line.root);
+      if (run) {
+        const i = run.indexOf(line);
+        if (i >= 0) run.splice(i, 1);
+        if (!run.length) runs.delete(line.root);
+      }
       dirty.delete(line);
       drawing.delete(line);
       line.line.classList.remove("melt-drawn");
-      forget(line);
-      const i = kept.indexOf(line);
-      if (i >= 0) kept.splice(i, 1);
+      if (line.picture) forget(line.picture.chunk);
       // Redraw without it.
       for (const other of drawing) other.drawn = "";
       if (drawing.size) wake();
