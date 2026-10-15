@@ -149,7 +149,7 @@ Same idea anywhere else: start it once the fonts are in, undo it when it goes aw
 | `depth`       | `1`          | 0–2em      | How far behind the text it pivots. Deeper swings wider.    |
 | `perspective` | `3`          | 1–30em     | Closer looks more 3D.                                      |
 | `duration`    | `0.4`        | 0.1–2s     | The flip. Only matters as a ratio unless you play it once. |
-| `ease`        | `power3.out` | any GSAP   | Used for both the flip and the melt.                       |
+| `ease`        | `power3.out` | any GSAP   | For the flip and the melt when played. Scrolled is linear. |
 | `melt`        | `true`       |            | The ink settles out of a dotted blur.                      |
 | `amount`      | `0.4`        | 0–1.5em    | How blurry it starts.                                      |
 | `dots`        | `0.79`       | 0–2        | How strong the dot grid is. Past 1 it breaks into blobs.   |

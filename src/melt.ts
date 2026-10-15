@@ -1355,9 +1355,12 @@ export const meltReveal = (
     drawn = [];
   };
 
+  // Scrubbed, the scroll paces the reveal, so it runs linear and finishes at
+  // `end`: an eased one looks done well before it. Played, it takes `ease`.
+  const paced = onBuild ? s : { ...s, ease: "none" };
   const reveal = (line: HTMLElement, vars: gsap.TimelineVars) => {
-    if (!gl) return lineReveal(line, s, svg, vars);
-    const drawnLine = gpuReveal(el, line, s, gl, vars);
+    if (!gl) return lineReveal(line, paced, svg, vars);
+    const drawnLine = gpuReveal(el, line, paced, gl, vars);
     drawn.push(drawnLine);
     return drawnLine.tl;
   };
