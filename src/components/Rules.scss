@@ -14,9 +14,11 @@
     color: var(--accent);
   }
 }
+// Its crosshair, the middle of 24px, on the middle of the 1px line. `top`
+// counts from below the line, since the line is the rule's border.
 .rule-target {
   position: absolute;
-  top: -12px;
+  top: -12.5px;
   right: -12px;
 
   @include phone {
