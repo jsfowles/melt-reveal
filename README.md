@@ -141,7 +141,7 @@ Same idea anywhere else: start it once the fonts are in, undo it when it goes aw
 | Setting       | Default      | Range      | Does                                                       |
 | ------------- | ------------ | ---------- | ---------------------------------------------------------- |
 | `start`       | `85`         | 20–100%    | Where on screen a line starts revealing, from the top.¹    |
-| `end`         | `65`         | 0–95%      | Where it finishes.                                         |
+| `end`         | `65`         | 0–95%      | Where it looks finished.²                                  |
 | `smooth`      | `0`          | 0–2s       | How long it lags behind your scroll. `0` follows exactly.  |
 | `flip`        | `true`       |            | Words swing up out of their clips.                         |
 | `angle`       | `-90`        | −180–0°    | How far back each word starts tipped.                      |
@@ -149,7 +149,7 @@ Same idea anywhere else: start it once the fonts are in, undo it when it goes aw
 | `depth`       | `1`          | 0–2em      | How far behind the text it pivots. Deeper swings wider.    |
 | `perspective` | `3`          | 1–30em     | Closer looks more 3D.                                      |
 | `duration`    | `0.4`        | 0.1–2s     | The flip. Only matters as a ratio unless you play it once. |
-| `ease`        | `power3.out` | any GSAP   | For the flip and the melt when played. Scrolled is linear. |
+| `ease`        | `power3.out` | any GSAP   | Used for both the flip and the melt.                       |
 | `melt`        | `true`       |            | The ink settles out of a dotted blur.                      |
 | `amount`      | `0.4`        | 0–1.5em    | How blurry it starts.                                      |
 | `dots`        | `0.79`       | 0–2        | How strong the dot grid is. Past 1 it breaks into blobs.   |
@@ -158,6 +158,8 @@ Same idea anywhere else: start it once the fonts are in, undo it when it goes aw
 | `length`      | `1.3`        | 0.3–3×     | How long the melt runs compared to the flip.               |
 
 ¹ `start` and `end` are a % of the screen with the browser's toolbars showing, so on a phone a line starts and ends where you can see it. ScrollTrigger's own % is of `100vh`, which on a phone is the taller screen with them hidden.
+
+² An eased reveal looks finished about 55% of the way through. Scrolled, it keeps step with your scroll at `start`, then slows to spread that over the whole way, so it looks finished as it reaches `end`.
 
 The playground's presets are good starting points: **Default** (the defaults, with a 1s flip), **Wordmark** (coarser dots, lighter blur), **Halftone** (coarse dots, softer edge), **Flip only** and **Ink only**.
 

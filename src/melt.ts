@@ -81,6 +81,13 @@ const STAGGER = 0.08;
 // start under them.
 let screen = 0;
 ScrollTrigger.addEventListener("refreshInit", () => (screen = 0));
+// An eased reveal looks finished about 55% of the way through: what's left
+// is too fine to see. Scrubbed, the scroll from `start` to `end` is paced so
+// it keeps step at `start`, then slows to spread that visible 55% over the
+// whole way, and the unseen rest lands at `end`.
+const SETTLED = 0.55;
+const paced = (x: number) => (x >= 1 ? 1 : x - (1 - SETTLED) * x * x);
+
 export const screenHeight = () => {
   if (screen) return screen;
   const probe = document.createElement("div");
@@ -271,6 +278,8 @@ type Line = {
   m: Melt;
   picture: Picture | null;
   drawn: string;
+  // The trigger that scrubs it, if scrolled.
+  trigger?: ScrollTrigger;
 };
 
 type Gpu = {
@@ -847,7 +856,7 @@ const createGpu = (host: HTMLElement | null): Gpu | null => {
   // rule, negative once it has landed, zero mid-reveal or when it's played
   // rather than scrubbed.
   const distOf = (line: Line) => {
-    const st = line.tl.scrollTrigger;
+    const st = line.trigger;
     if (!st) return 0;
     return scrollY < st.start
       ? st.start - scrollY
@@ -1355,14 +1364,11 @@ export const meltReveal = (
     drawn = [];
   };
 
-  // Scrubbed, the scroll paces the reveal, so it runs linear and finishes at
-  // `end`: an eased one looks done well before it. Played, it takes `ease`.
-  const paced = onBuild ? s : { ...s, ease: "none" };
   const reveal = (line: HTMLElement, vars: gsap.TimelineVars) => {
-    if (!gl) return lineReveal(line, paced, svg, vars);
-    const drawnLine = gpuReveal(el, line, paced, gl, vars);
+    if (!gl) return { tl: lineReveal(line, s, svg, vars), drawnLine: null };
+    const drawnLine = gpuReveal(el, line, s, gl, vars);
     drawn.push(drawnLine);
-    return drawnLine.tl;
+    return { tl: drawnLine.tl, drawnLine };
   };
 
   const split = SplitText.create(el, {
@@ -1378,13 +1384,18 @@ export const meltReveal = (
         if (onBuild) {
           const tl = gsap.timeline({ paused: true });
           lines.forEach((line, i) =>
-            tl.add(reveal(line as HTMLElement, {}), i * STAGGER),
+            tl.add(reveal(line as HTMLElement, {}).tl, i * STAGGER),
           );
           onBuild(tl);
           return;
         }
         for (const line of lines) {
-          reveal(line as HTMLElement, {
+          const { tl, drawnLine } = reveal(line as HTMLElement, {
+            paused: true,
+          });
+          const drive = gsap.to(tl, {
+            progress: 1,
+            ease: paced,
             scrollTrigger: {
               trigger: line,
               start: () => `top ${(s.start / 100) * screenHeight()}px`,
@@ -1393,6 +1404,7 @@ export const meltReveal = (
               scrub: s.smooth || true,
             },
           });
+          if (drawnLine) drawnLine.trigger = drive.scrollTrigger;
         }
       });
     },
