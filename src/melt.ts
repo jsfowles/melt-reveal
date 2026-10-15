@@ -148,19 +148,14 @@ const lineReveal = (
     );
   }
 
-  const melt = { duration: s.duration * s.length, ease: s.ease };
-  if (s.melt && s.flip && webkit) {
-    // Safari draws nothing for the melt filter over 3D words, and inside each
-    // word's clip it cuts hard, so there the line blurs in plainly instead.
-    tl.from(
-      line,
-      { filter: `blur(${s.amount * fontSize}px)`, opacity: 0, ...melt },
-      0,
-    ).set(line, { filter: "none" });
-  } else if (s.melt) {
-    // On the line, outside the words' clips, the melt spills softly past them.
+  if (s.melt) {
     const f = meltFilter(svg, fontSize, s);
+    const melt = { duration: s.duration * s.length, ease: s.ease };
+    // On the line, outside the words' clips, the melt spills softly past them.
+    // Safari's engine places the dot grid wrongly on an untransformed block
+    // and draws nothing, so there the line gets a shift too small to see.
     gsap.set(line, { filter: f.url });
+    if (webkit) line.style.transform = "translateX(0.01px)";
     tl.from(
       f.blurs,
       { attr: { stdDeviation: s.amount * fontSize }, ...melt },
