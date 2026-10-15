@@ -121,7 +121,7 @@ const lineReveal = (
   const tl = gsap.timeline(vars);
   const words = line.querySelectorAll<HTMLElement>(".melt-word");
 
-  if (s.flip) {
+  if (s.flip && !webkit) {
     // Perspective sits on each word's clip, not in the word's transform, so a
     // word at rest is flat. A 3D word is its own layer, and hundreds of layers
     // are slow to composite on every scroll frame.
@@ -130,20 +130,27 @@ const lineReveal = (
       { perspective: s.perspective * fontSize },
     );
     gsap.set(words, { transformOrigin: `50% 50% ${-s.depth * fontSize}px` });
+  }
+
+  if (s.flip) {
     // Before a line starts its words are out of sight below their clips, so
     // they wait flat and hidden (see CSS) rather than tipped in 3D.
     const wait = () =>
       line.classList.toggle("melt-waiting", tl.progress() === 0);
     tl.eventCallback("onUpdate", wait);
     wait();
+    // Safari drops the line's filter over 3D words, so there the tip is
+    // drawn flat: each word starts squashed by as much as the angle would
+    // foreshorten it, and stays 2D.
+    const tip = webkit
+      ? {
+          scaleY: Math.abs(Math.cos((s.angle * Math.PI) / 180)),
+          force3D: false,
+        }
+      : { rotationX: s.angle };
     tl.from(
       words,
-      {
-        yPercent: s.travel,
-        rotationX: s.angle,
-        duration: s.duration,
-        ease: s.ease,
-      },
+      { yPercent: s.travel, ...tip, duration: s.duration, ease: s.ease },
       0,
     );
   }

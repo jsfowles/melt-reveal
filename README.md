@@ -169,7 +169,7 @@ The playground's presets are good starting points: **Default** (the defaults, wi
 - SplitText labels the element with its full text, so screen readers read it as one paragraph.
 - Each line carries its own SVG filter until it lands, and blur gets expensive past about 20px. Keep `amount` × font size under that on big type, and lower on phones; the playground caps phones at 8px.
 - Lines wait flat and unfiltered until they start, so a long page doesn't pay for hundreds of 3D layers or filters.
-- The filter goes on the line, outside the words' clips, so the melt spills softly past them. Safari's engine, which every iPhone browser uses, draws nothing for it on an untransformed block, so there the line gets a shift too small to see. Safari also draws SVG filters at 1×, so on a phone the melt is a little soft until it lands.
+- The filter goes on the line, outside the words' clips, so the melt spills softly past them. Safari, and every iPhone browser since they all run on its engine, drops that filter over 3D-transformed words, so there the flip is drawn flat: each word slides up from squashed instead of tipping in 3D. Safari also draws SVG filters at 1×, so on a phone the dots are a little coarser.
 - Lines are measured when you call it. If something moves the page after that, like an intro that slides content in, call `ScrollTrigger.refresh()` once it settles, or lines start late.
 - Agents can read [llms.txt](https://melt-reveal.jsfowles.com/llms.txt), with the README and the source of `melt.ts` in one file at [llms-full.txt](https://melt-reveal.jsfowles.com/llms-full.txt).
 
