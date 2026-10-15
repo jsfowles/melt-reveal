@@ -23,12 +23,21 @@
   }
 }
 .inspector-play {
+  position: relative;
   padding: 0;
   border: 0;
   background: none;
   font-weight: 600;
   text-decoration: underline 1px;
   text-underline-offset: 4px;
+
+  // The word alone is too small to hit with a thumb, so the tap area reaches
+  // past it to at least 44px. The scrubber below is drawn over any overlap.
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -14px -12px;
+  }
 
   @include hover {
     color: var(--accent);
