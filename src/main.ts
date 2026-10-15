@@ -51,8 +51,13 @@ const buildSpecimens = (settings: Settings) => {
       );
 };
 
-// The start/end rules, shown only while the specimens are on screen.
+// The start/end rules, shown only while the specimens are on screen. They're
+// placed against the screen height ScrollTrigger last measured, not the
+// screen's own: on a phone it doesn't measure again when the browser's
+// toolbar slides away, so a rule in % would drift off the point a line
+// really starts at.
 let specimensInView = false;
+let measured = innerHeight;
 const placeRules = ({ start, end }: Settings) => {
   const finish = Math.min(end, start - 1);
   document.documentElement.style.setProperty("--finish", `${100 - finish}vh`);
@@ -64,7 +69,7 @@ const placeRules = ({ start, end }: Settings) => {
     const label = $(`${id}-label`);
     rule.hidden = label.hidden =
       !guides.checked || reduced.matches || !specimensInView;
-    rule.style.top = label.style.top = `${at}%`;
+    rule.style.top = label.style.top = `${(at / 100) * measured}px`;
     label.textContent = `${word} ${at}%`;
   }
 };
@@ -89,6 +94,10 @@ scrub.addEventListener("input", () =>
 );
 $("play").addEventListener("click", () => inspector?.play(0));
 guides.addEventListener("change", () => placeRules(panel.settings()));
+ScrollTrigger.addEventListener("refreshInit", () => {
+  measured = innerHeight;
+  placeRules(panel.settings());
+});
 
 // On a phone the open dock covers the foot of the screen, so opening it
 // brings the inspector up into the space above if it's hidden. Further down,
