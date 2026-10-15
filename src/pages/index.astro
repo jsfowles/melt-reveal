@@ -34,6 +34,14 @@ const description =
       type="font/woff2"
       crossorigin
     />
+    <!-- The reveal waits on both faces before it splits the text. -->
+    <link
+      rel="preload"
+      href="/fonts/geist-mono-latin-wght-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <script is:inline>
       document.documentElement.classList.add("js");
       setTimeout(() => document.documentElement.classList.add("ready"), 3000);
