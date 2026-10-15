@@ -7,7 +7,7 @@
 
 # Melt reveal
 
-A scroll text reveal. Each line flips up out of a clip while an SVG filter melts its ink from a halftone dot screen into crisp type, scrubbed by your scroll.
+A scroll text reveal. Each line flips up out of a clip while its ink melts on the GPU from a halftone dot screen into crisp type, scrubbed by your scroll.
 
 **[Play with it](https://melt-reveal.jsfowles.com)** · [Quick start](#quick-start) · [API](#api) · [Settings](#settings)
 
@@ -162,9 +162,11 @@ The playground's presets are good starting points: **Default** (the defaults, wi
 ## Good to know
 
 - SplitText labels the element with its full text, so screen readers read it as one paragraph.
-- Each line carries its own SVG filter until it lands, and blur gets expensive past about 20px. Keep `amount` × font size under that on big type, and lower on phones; the playground caps phones at 8px.
-- Lines wait flat and unfiltered until they start, so a long page doesn't pay for hundreds of 3D layers or filters.
-- The filter goes on the line, outside the words' clips, so the melt spills softly past them. Safari, and every iPhone browser since they all run on its engine, drops that filter over 3D-transformed words, so there the flip is drawn flat: each word slides up from squashed instead of tipping in 3D. Safari also draws SVG filters at 1×, so on a phone the dots are a little coarser.
+- The melt runs in WebGL. A line mid-reveal has its text drawn once into a texture, then each frame its words are tipped, blurred, screened with dots and cut in shaders, so it holds 60fps in Safari and on iPhones too. Its own text stays in the page for layout, selection and screen readers, hidden until the line lands. Lines waiting or landed cost nothing.
+- The canvas goes in the text's layer: the nearest positioned ancestor with a `z-index`, or the page. So the melt paints over the text and under whatever covers it, like a sticky header. It isn't clipped by an `overflow: hidden` box in between, though.
+- Only the glyphs are drawn, in each text node's font and colour. Underlines, backgrounds and shadows on inline markup disappear while a line melts and come back when it lands.
+- The melt is drawn over the line, outside the words' clips, so it spills softly past them.
+- Without WebGL 2 it falls back to an SVG filter on each line. Safari paints those on the CPU, so there keep `amount` × font size under about 20px on big type, and lower on phones; the playground caps phones at 8px. Safari also drops the filter over 3D-transformed words, so in the fallback the flip is drawn flat: each word slides up from squashed instead of tipping in 3D.
 - Lines are measured when you call it. If something moves the page after that, like an intro that slides content in, call `ScrollTrigger.refresh()` once it settles, or lines start late.
 - Agents can read [llms.txt](https://melt-reveal.jsfowles.com/llms.txt), with the README and the source of `melt.ts` in one file at [llms-full.txt](https://melt-reveal.jsfowles.com/llms-full.txt).
 

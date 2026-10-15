@@ -7,7 +7,7 @@ export const SITE = "https://melt-reveal.jsfowles.com";
 const REPO = "https://github.com/jsfowles/melt-reveal";
 
 const SUMMARY =
-  "A scroll text reveal for the web: each line flips up out of a clip while an SVG filter melts its ink from a halftone dot screen into crisp type, scrubbed by scroll or played once. One TypeScript file on GSAP.";
+  "A scroll text reveal for the web: each line flips up out of a clip while its ink melts on the GPU from a halftone dot screen into crisp type, scrubbed by scroll or played once. One TypeScript file on GSAP.";
 
 export const text = (body: string, type = "text/plain") =>
   new Response(body, { headers: { "Content-Type": `${type}; charset=utf-8` } });
