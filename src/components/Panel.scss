@@ -5,7 +5,7 @@
   top: 24px;
   z-index: 6;
   align-self: start;
-  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   margin-top: -32px;
   padding-right: 12px;
   overflow: auto;
@@ -14,42 +14,30 @@
   border-top: 2px solid var(--border);
   scrollbar-width: thin;
 
+  // A dock at the foot of the screen: its tabs, with the chosen pane above
+  // them. It grows upwards from the tabs, so a tab stays under the thumb.
+  // Side padding lines it up with the sheet's copy: --inset plus 16px.
   @include phone {
     position: fixed;
     inset: auto 0 0;
     z-index: 20;
-    max-height: 75vh;
+    display: grid;
+    max-height: none;
     margin-top: 0;
-    padding: 0 16px env(safe-area-inset-bottom, 0px);
+    padding: 0 24px env(safe-area-inset-bottom, 0px);
+    overflow: visible;
   }
+}
 
-  summary {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    padding: 6px 0 8px;
-    list-style: none;
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0 8px;
 
-    &::-webkit-details-marker {
-      display: none;
-    }
-    // On a phone the summary opens and shuts the sheet.
-    @include phone {
-      cursor: pointer;
-
-      &::after {
-        content: "";
-        width: 8px;
-        height: 8px;
-        margin-left: auto;
-        border: solid var(--text);
-        border-width: 1.5px 1.5px 0 0;
-        transform: translateY(2px) rotate(-45deg);
-      }
-    }
-  }
-  &[open] summary::after {
-    transform: translateY(-2px) rotate(135deg);
+  // The tabs name the dock on a phone.
+  @include phone {
+    display: none;
   }
 }
 .panel-title {
@@ -58,9 +46,135 @@
   letter-spacing: -0.01em;
 }
 .panel-body {
+  padding-bottom: 16px;
+
+  // Shut, the panes fold away to nothing; open, they unfold above the tabs.
+  @include phone {
+    display: grid;
+    grid-template-rows: 0fr;
+    padding-bottom: 0;
+    transition: grid-template-rows var(--duration-sheet-out) var(--ease-sheet);
+
+    [data-dock="open"] & {
+      grid-template-rows: 1fr;
+      transition-duration: var(--duration-sheet-in);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+.panes {
   display: grid;
   gap: 10px;
-  padding-bottom: 16px;
+
+  // One pane at a time, each only as tall as it needs. The tabs sit below, so
+  // a pane of another height only moves the dock's top edge.
+  @include phone {
+    min-height: 0;
+    max-height: 70dvh;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    gap: 0;
+
+    > *,
+    .panel-settings > * {
+      padding-block: 16px 12px;
+    }
+    .panel-settings {
+      display: contents;
+    }
+    [data-pane]:not(.active) {
+      display: none;
+    }
+  }
+}
+.pane {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+.pane-copy {
+  padding-top: 8px;
+  border-top: 2px solid var(--border);
+
+  @include phone {
+    border-top: 0;
+  }
+}
+
+// The dock's tabs. A rule over the chosen one, as over a group; a magenta
+// mark on any whose settings have changed.
+.dock-tabs {
+  display: none;
+
+  @include phone {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    margin-inline: -24px;
+    padding-inline: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  button {
+    position: relative;
+    min-height: 48px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: var(--text-ui);
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: color 150ms var(--ease-out);
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: -1px 8px auto;
+      height: 2px;
+      background: var(--border);
+      scale: 0 1;
+      transition: scale 200ms var(--ease-out);
+    }
+    @include hover {
+      color: var(--text);
+    }
+    &[aria-expanded="true"] {
+      color: var(--text);
+      font-weight: 700;
+
+      &::before {
+        scale: 1 1;
+      }
+    }
+    // Focus is a rule under the name, quieter than a box round the tab.
+    &:focus-visible {
+      outline: none;
+      text-decoration: underline 2px;
+      text-underline-offset: 6px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button,
+    button::before {
+      transition: none;
+    }
+  }
+}
+.panel:has(#flip-rows .was) [data-for="flip"],
+.panel:has(#melt-rows .was) [data-for="melt"],
+.panel:has(#scroll-rows .was) [data-for="scroll"] {
+  &::after {
+    content: "";
+    position: absolute;
+    top: 12px;
+    right: 8px;
+    width: 5px;
+    height: 5px;
+    background: var(--accent);
+  }
 }
 
 .presets {
@@ -102,12 +216,39 @@
     &[aria-pressed="true"]::before {
       background: var(--text);
     }
-    &:hover {
+    @include hover {
       text-decoration: underline;
       text-underline-offset: 3px;
     }
-    @include phone {
+  }
+
+  // On a phone, just the names: one choice, so no boxes and no rules. The
+  // chosen one is inked and underlined, the rest wait in grey.
+  @include phone {
+    grid-template-columns: repeat(3, max-content);
+    column-gap: 28px;
+    border-top: 0;
+
+    li,
+    li:not(:nth-child(3n + 1)) {
+      padding: 0;
+      border: 0;
+    }
+    button {
+      width: auto;
       min-height: 44px;
+      color: var(--text-muted);
+      font-size: var(--text-body);
+
+      &::before {
+        display: none;
+      }
+      &[aria-pressed="true"] {
+        color: var(--text);
+        font-weight: 700;
+        text-decoration: underline 2px;
+        text-underline-offset: 6px;
+      }
     }
   }
 }
@@ -123,13 +264,11 @@
   gap: 8px;
 }
 
-.sign-off {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding-top: 8px;
-  border-top: 2px solid var(--border);
+// Copy settings beside the whole file, which is the one to reach for.
+.copies {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 .panel-rules {
   font-size: var(--text-ui);
@@ -148,12 +287,22 @@
   font-size: var(--text-ui);
   font-weight: 600;
 
-  &:hover {
+  @include hover {
     background: var(--text);
     color: var(--surface);
   }
   @include phone {
     min-height: 44px;
+  }
+
+  &.primary {
+    background: var(--text);
+    color: var(--surface);
+
+    @include hover {
+      background: var(--surface);
+      color: var(--text);
+    }
   }
 }
 .approve-box {

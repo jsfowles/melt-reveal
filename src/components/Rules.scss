@@ -32,7 +32,11 @@
   background: var(--surface);
   pointer-events: none;
 
+  // Its text lines up with the copy: the sheet's 16px padding, less its own
+  // 4px. The inspector spans the column here, so the label passes behind it
+  // with the rules rather than covering the scrubber.
   @include phone {
-    left: calc(var(--inset) + 4px);
+    left: calc(var(--inset) + 12px);
+    z-index: 5;
   }
 }

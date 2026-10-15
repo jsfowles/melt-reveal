@@ -1,51 +1,105 @@
 ---
-// The settings panel: presets, the setting groups and Copy settings. Its
-// behaviour is in panel.ts. On a phone it's a bottom sheet.
+// The settings panel: presets, the setting groups and the copy buttons. Its
+// behaviour is in panel.ts. On a phone it's a dock of tabs, one pane open at
+// a time, run by dock.ts.
 import "./Panel.scss";
 import { GROUPS } from "../controls";
 import { PRESETS } from "../presets";
 import Group from "./Group.astro";
 import Switch from "./Switch.astro";
+
+const tabs = [
+  { pane: "presets", label: "Presets", id: "pane-presets" },
+  ...GROUPS.map((g) => ({ pane: g.id, label: g.label, id: `${g.id}-group` })),
+  { pane: "copy", label: "Copy", id: "pane-copy" },
+];
 ---
 
-<details class="panel" id="panel" open>
-  <summary>
-    <span class="panel-title">Make-ready</span>
+<aside class="panel" id="panel" aria-labelledby="panel-title">
+  <header class="panel-head">
+    <h2 class="panel-title" id="panel-title">
+      Settings
+    </h2>
     <span class="pen mono" id="changed" hidden></span>
-  </summary>
+  </header>
 
-  <div class="panel-body">
-    <ul class="presets" aria-label="Presets">
-      {Object.entries(PRESETS).map(([name, { note }]) => (
-        <li>
-          <button type="button" data-preset={name} data-note={note}>
-            {name}
+  <div class="panel-body" id="panel-body">
+    <div class="panes">
+      <section
+        class="pane"
+        id="pane-presets"
+        data-pane="presets"
+        aria-label="Presets"
+      >
+        <ul class="presets" aria-label="Presets">
+          {Object.entries(PRESETS).map(([name, { note }]) => (
+            <li>
+              <button type="button" data-preset={name} data-note={note}>
+                {name}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p class="preset-note" id="preset-note"></p>
+      </section>
+
+      <form class="panel-settings" id="settings" autocomplete="off">
+        {GROUPS.map((group) =>
+          group.id === "scroll" ? (
+            <Group group={group}>
+              <Switch class="panel-rules" id="guides" checked>
+                Start and end rules
+              </Switch>
+            </Group>
+          ) : (
+            <Group group={group} />
+          ),
+        )}
+      </form>
+
+      <section class="pane pane-copy" id="pane-copy" data-pane="copy">
+        <div class="copies">
+          <button
+            type="button"
+            class="approve"
+            id="copy-settings"
+            data-label="Copy settings"
+          >
+            <span class="approve-box" aria-hidden="true"></span>
+            <span class="approve-text" aria-live="polite">
+              Copy settings
+            </span>
           </button>
-        </li>
-      ))}
-    </ul>
-    <p class="preset-note" id="preset-note"></p>
-
-    <form class="panel-settings" id="settings" autocomplete="off">
-      {GROUPS.map((group) => (
-        <Group group={group} />
-      ))}
-    </form>
-
-    <div class="sign-off">
-      <Switch class="panel-rules" id="guides" checked>
-        Start and end rules
-      </Switch>
-      <button type="button" class="approve" id="copy">
-        <span class="approve-box" aria-hidden="true"></span>
-        <span class="approve-text" aria-live="polite">
-          Copy settings
-        </span>
-      </button>
+          <button
+            type="button"
+            class="approve primary"
+            id="copy-file"
+            data-label="Copy melt.ts"
+          >
+            <span class="approve-box" aria-hidden="true"></span>
+            <span class="approve-text" aria-live="polite">
+              Copy melt.ts
+            </span>
+          </button>
+        </div>
+        <p class="copy-failed" id="copy-failed" role="status" hidden>
+          Couldn’t copy. Select it below and copy it yourself.
+        </p>
+        <pre class="panel-code" id="code" translate="no" hidden></pre>
+      </section>
     </div>
-    <p class="copy-failed" id="copy-failed" role="status" hidden>
-      Couldn’t copy. Select the settings below and copy them yourself.
-    </p>
-    <pre class="panel-code" id="code" translate="no" hidden></pre>
   </div>
-</details>
+
+  <nav class="dock-tabs" aria-label="Settings">
+    {tabs.map(({ pane, label, id }) => (
+      <button
+        type="button"
+        data-for={pane}
+        aria-controls={id}
+        aria-expanded="false"
+      >
+        {label}
+      </button>
+    ))}
+  </nav>
+</aside>

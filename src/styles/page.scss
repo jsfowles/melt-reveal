@@ -12,8 +12,10 @@
 
   @include phone {
     grid-template-columns: minmax(0, 1fr);
-    margin: 12px var(--inset);
-    padding: 80px 24px 96px;
+    // The foot clears the closed dock (its 2px rule and 48px tabs), so the
+    // sheet's edge shows above it.
+    margin: 8px var(--inset) calc(58px + env(safe-area-inset-bottom, 0px));
+    padding: 80px 16px 24px;
   }
 }
 .sheet-copy {
@@ -62,8 +64,18 @@
   font-size: var(--text-lede);
   line-height: 1.5;
 }
+// Just after the last specimen, with the room for that last line to scroll
+// up to the end rule below it: the slug comes to rest between the rules.
 .slug {
-  grid-column: 1 / -1;
   margin: 56px 0 0;
+  padding-bottom: max(24px, calc(var(--finish, 35vh) - 200px));
   color: var(--text-muted);
+
+  // On a phone the rule labels sit over the text, not in a margin, so the
+  // last line scrolls a little past the end rule, clear of its label, and
+  // the slug rests below that label.
+  @include phone {
+    margin-top: 56px;
+    padding-bottom: max(24px, calc(var(--finish, 35vh) - 126px));
+  }
 }

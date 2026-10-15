@@ -37,12 +37,11 @@ type Change = (
 const $ = <T extends HTMLElement>(id: string) =>
   document.getElementById(id) as T;
 
-export const startPanel = (onChange: Change) => {
+// `source` is melt.ts itself, for Copy melt.ts.
+export const startPanel = (onChange: Change, source: string) => {
   const form = $<HTMLFormElement>("settings");
-  const panel = $<HTMLDetailsElement>("panel");
   const list = document.querySelector<HTMLElement>(".presets")!;
   const presets = [...list.querySelectorAll<HTMLElement>("[data-preset]")];
-  const phone = matchMedia("(max-width: 899px)");
 
   let baseName = "Default";
   let base = PRESETS[baseName].settings;
@@ -149,39 +148,30 @@ export const startPanel = (onChange: Change) => {
   list.addEventListener("pointerleave", () => notePreset());
   list.addEventListener("focusout", () => notePreset());
 
-  $("copy").addEventListener("click", async (e) => {
-    const button = e.currentTarget as HTMLButtonElement;
+  // Copies settings or the whole effect. If the clipboard is blocked, the
+  // text shows below to copy by hand.
+  const copy = async (button: HTMLButtonElement, text: string) => {
     const label = button.querySelector(".approve-text")!;
-    const code = asCode(settings);
-    const failed = await navigator.clipboard.writeText(code).then(
+    const failed = await navigator.clipboard.writeText(text).then(
       () => false,
       () => true,
     );
     $("copy-failed").hidden = $("code").hidden = !failed;
-    $("code").textContent = failed ? code : "";
+    $("code").textContent = failed ? text : "";
     if (failed) return;
     button.classList.add("done");
     label.textContent = "Copied";
     setTimeout(() => {
       button.classList.remove("done");
-      label.textContent = "Copy settings";
+      label.textContent = button.dataset.label!;
     }, 1800);
-  });
-
-  // On a phone the panel is a bottom sheet that toggles; on desktop it's
-  // always open and its summary is just a heading.
-  const summary = panel.querySelector("summary")!;
-  const fit = () => {
-    panel.open = !phone.matches;
-    summary.role = phone.matches ? null : "heading";
-    summary.ariaLevel = phone.matches ? null : "2";
-    summary.tabIndex = phone.matches ? 0 : -1;
   };
-  summary.addEventListener("click", (e) => {
-    if (!phone.matches) e.preventDefault();
-  });
-  phone.addEventListener("change", fit);
-  fit();
+  $("copy-settings").addEventListener("click", (e) =>
+    copy(e.currentTarget as HTMLButtonElement, asCode(settings)),
+  );
+  $("copy-file").addEventListener("click", (e) =>
+    copy(e.currentTarget as HTMLButtonElement, source),
+  );
 
   show();
   return { settings: () => settings, refresh: () => update(settings, false) };

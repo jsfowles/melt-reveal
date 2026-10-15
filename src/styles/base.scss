@@ -1,5 +1,14 @@
+@use "mixins" as *;
+
 * {
   box-sizing: border-box;
+}
+// On a phone the settings dock covers the foot of the screen, so focus moved
+// there scrolls clear of it.
+html {
+  @include phone {
+    scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
 }
 body {
   margin: 0;
@@ -34,9 +43,14 @@ button {
   line-height: 1.08;
   letter-spacing: -0.028em;
 }
-:is(button, input, select, summary, label) {
+:is(a, button, input, select, summary, label) {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+// Controls, not copy: a long press shouldn't select their text.
+:is(button, summary, label) {
+  -webkit-user-select: none;
+  user-select: none;
 }
 [hidden] {
   display: none !important;

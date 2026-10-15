@@ -50,7 +50,7 @@ export const enter = () => {
 
   if (matchMedia("(min-width: 900px)").matches) {
     tl.from(".panel", { x: 24, opacity: 0 }, 0.35).from(
-      ".panel summary, .presets, .preset-note, fieldset, .sign-off",
+      ".panel-head, .presets, .preset-note, fieldset, .copies",
       { y: 8, opacity: 0, duration: 0.4, stagger: 0.03 },
       0.45,
     );

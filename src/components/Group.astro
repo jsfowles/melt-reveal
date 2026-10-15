@@ -1,5 +1,6 @@
 ---
-// A foldable group of settings, starting folded.
+// A foldable group of settings, starting folded. On a phone it's one of the
+// dock's panes instead (see dock.ts). Anything slotted goes after its fields.
 import "./Group.scss";
 import type { Group } from "../controls";
 import Field from "./Field.astro";
@@ -10,7 +11,12 @@ type Props = { group: Group };
 const { group } = Astro.props;
 ---
 
-<fieldset class="group" data-toggle={group.toggle}>
+<fieldset
+  class="group"
+  id={`${group.id}-group`}
+  data-pane={group.id}
+  data-toggle={group.toggle}
+>
   <legend>
     {group.toggle ? (
       <Switch id={group.toggle} name={group.toggle}>
@@ -33,6 +39,7 @@ const { group } = Astro.props;
       {group.controls.map((control) => (
         <Field control={control} />
       ))}
+      <slot />
     </div>
   </div>
 </fieldset>

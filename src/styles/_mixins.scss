@@ -4,3 +4,12 @@
     @content;
   }
 }
+
+// Hover for mice only. On a touchscreen a tap leaves :hover stuck on.
+@mixin hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @content;
+    }
+  }
+}

@@ -12,6 +12,8 @@
     height: 14px;
     margin: 0;
     border: 1px solid var(--border);
+    // iOS Safari rounds checkboxes by default.
+    border-radius: 0;
     background: var(--surface);
     cursor: pointer;
 

@@ -3,17 +3,24 @@
 .specimens {
   display: grid;
   gap: clamp(64px, 14vh, 160px);
-  // Room for the last line to scroll up to the end rule.
-  padding-block: clamp(48px, 10vh, 120px)
-    max(48px, calc(var(--finish, 35vh) - 160px));
+
+  // A phone's text is smaller, so the same gap reads as dead scroll.
+  @include phone {
+    gap: clamp(56px, 9vh, 96px);
+  }
+  // Room above for the first line to start below the start rule. The room
+  // below, for the last line to reach the end rule, is under the slug.
+  padding-top: clamp(48px, 10vh, 120px);
 }
 .specimen {
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr);
   align-items: baseline;
 
+  // On a phone the label sits above, so the text gets the full width.
   @include phone {
-    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 12px;
   }
 }
 .specimen-label {

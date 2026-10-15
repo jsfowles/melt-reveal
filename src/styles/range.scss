@@ -32,6 +32,9 @@ input[type="range"] {
     height: var(--th);
     margin-top: calc((var(--h) - var(--th)) / 2);
     border: 0;
+    // iOS Safari gives the thumb its own rounding and shadow.
+    border-radius: 0;
+    box-shadow: none;
     background: var(--thumb);
   }
   &::-moz-range-thumb {
@@ -60,13 +63,19 @@ input[type="range"] {
     --tw: 30px;
     --th: 30px;
   }
-  // Bigger touch targets on phones.
+  // On a phone: a taller strip to touch, but quiet at rest, a hairline and a
+  // slim bar. The target and ticks show only on the slider in hand.
   @include phone {
-    .field &,
-    .field:is(:hover, :focus-within) & {
-      --h: 44px;
-      --tw: 28px;
-      --th: 28px;
+    .field & {
+      --h: 30px;
+      --tw: 4px;
+      --th: 18px;
+      --thumb: var(--text);
+      background: var(--rule);
+    }
+    .field:focus-within & {
+      --tw: 22px;
+      --th: 22px;
       --thumb: var(--target) center / contain no-repeat;
       background: var(--rule), var(--ticks);
     }

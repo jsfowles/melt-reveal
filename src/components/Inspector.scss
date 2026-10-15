@@ -1,3 +1,5 @@
+@use "../styles/mixins" as *;
+
 // Sits above the start/end rules, which pass behind it.
 .inspector {
   position: relative;
@@ -28,7 +30,7 @@
   text-decoration: underline 1px;
   text-underline-offset: 4px;
 
-  &:hover {
+  @include hover {
     color: var(--accent);
   }
 }

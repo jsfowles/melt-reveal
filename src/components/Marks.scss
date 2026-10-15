@@ -8,7 +8,7 @@
   align-items: center;
 
   @include phone {
-    inset: 28px 24px auto;
+    inset: 28px 16px auto;
   }
 }
 .marks-bar {
@@ -37,7 +37,7 @@
   text-decoration: underline 1px;
   text-underline-offset: 4px;
 
-  &:hover {
+  @include hover {
     color: var(--accent);
   }
   @include phone {

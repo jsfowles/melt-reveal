@@ -4,7 +4,7 @@ A scroll text reveal. Each line flips up out of a clip while an SVG filter melts
 
 **[Play with it →](https://melt-reveal.jsfowles.com)**
 
-It's one file, [`src/melt.ts`](src/melt.ts), plus a little CSS, [`src/styles/reveal.css`](src/styles/reveal.css). GSAP is the only dependency.
+It's one file, [`src/melt.ts`](src/melt.ts). GSAP is the only dependency.
 
 ## Quick start
 
@@ -14,13 +14,12 @@ Install GSAP 3.13 or later. SplitText comes with it now, for free.
 npm install gsap
 ```
 
-Copy [`src/melt.ts`](src/melt.ts) and [`src/styles/reveal.css`](src/styles/reveal.css) into your project. The CSS keeps descenders from getting clipped and hides the filters.
+Copy [`src/melt.ts`](src/melt.ts) into your project, or hit **Copy melt.ts** in the playground. It adds the little CSS it needs itself.
 
 Then point it at some text:
 
 ```ts
 import { meltReveal, DEFAULTS } from "./melt";
-import "./reveal.css";
 
 document.fonts.ready.then(() => {
   for (const el of document.querySelectorAll<HTMLElement>(".reveal")) {
@@ -103,7 +102,7 @@ npm install
 npm run dev
 ```
 
-It's an Astro page. `npm run check` typechecks and formats. The effect is `src/melt.ts` and `src/styles/reveal.css`, everything else is the playground.
+It's an Astro page. `npm run check` typechecks and formats. The effect is `src/melt.ts`; everything else is the playground.
 
 ## License
 

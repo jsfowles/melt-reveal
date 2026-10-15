@@ -1,4 +1,4 @@
-// Melt reveal, MIT. Needs gsap 3.13+ and reveal.css. Call after fonts load.
+// Melt reveal, MIT. Needs gsap 3.13+. Call after fonts load.
 //   meltReveal(el, settings)                     scrubbed by scroll
 //   meltReveal(el, settings, (tl) => tl.play())  played once
 // Both return an undo.
@@ -9,6 +9,23 @@ import { SplitText } from "gsap/SplitText";
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
 const SVG = "http://www.w3.org/2000/svg";
+
+// The CSS the effect needs, added once. Each word's clip reaches a little
+// past it so descenders aren't cut. A line that hasn't started has its words
+// out of sight below their clips, so they wait flat, unfiltered and hidden
+// rather than each as a 3D layer.
+const CSS = `
+.melt-word-mask { overflow: visible !important; clip-path: inset(-0.15em -0.08em); }
+.melt-waiting .melt-word { visibility: hidden; transform: none !important; filter: none !important; }
+`;
+let styled = false;
+const addStyles = () => {
+  if (styled) return;
+  styled = true;
+  const style = document.createElement("style");
+  style.textContent = CSS;
+  document.head.append(style);
+};
 
 // Lengths in em; `start`/`end` in % of viewport; `travel` in % of word height.
 export type Settings = {
@@ -95,13 +112,23 @@ const lineReveal = (
 ) => {
   const fontSize = parseFloat(getComputedStyle(line).fontSize);
   const tl = gsap.timeline(vars);
+  const words = line.querySelectorAll<HTMLElement>(".melt-word");
 
   if (s.flip) {
-    const words = line.querySelectorAll(".word");
-    gsap.set(words, {
-      transformPerspective: s.perspective * fontSize,
-      transformOrigin: `50% 50% ${-s.depth * fontSize}px`,
-    });
+    // Perspective sits on each word's clip, not in the word's transform, so a
+    // word at rest is flat. A 3D word is its own layer, and hundreds of layers
+    // are slow to composite on every scroll frame.
+    gsap.set(
+      [...words].map((word) => word.parentElement),
+      { perspective: s.perspective * fontSize },
+    );
+    gsap.set(words, { transformOrigin: `50% 50% ${-s.depth * fontSize}px` });
+    // Before a line starts its words are out of sight below their clips, so
+    // they wait flat and hidden (see CSS) rather than tipped in 3D.
+    const wait = () =>
+      line.classList.toggle("melt-waiting", tl.progress() === 0);
+    tl.eventCallback("onUpdate", wait);
+    wait();
     tl.from(
       words,
       {
@@ -117,7 +144,10 @@ const lineReveal = (
   if (s.melt) {
     const f = meltFilter(svg, fontSize, s);
     const melt = { duration: s.duration * s.length, ease: s.ease };
-    gsap.set(line, { filter: f.url });
+    // Safari drops a filter whose element has 3D-transformed children, so
+    // with the flip on it goes on the words themselves.
+    const inked = s.flip ? words : line;
+    gsap.set(inked, { filter: f.url });
     tl.from(
       f.blurs,
       { attr: { stdDeviation: s.amount * fontSize }, ...melt },
@@ -133,7 +163,7 @@ const lineReveal = (
         },
         melt.duration * 0.37,
       )
-      .set(line, { filter: "none" });
+      .set(inked, { filter: "none" });
   }
 
   return tl;
@@ -146,14 +176,15 @@ export const meltReveal = (
   s: Settings,
   onBuild?: (tl: gsap.core.Timeline) => void,
 ) => {
+  addStyles();
   const svg = document.body.appendChild(document.createElementNS(SVG, "svg"));
   svg.setAttribute("aria-hidden", "true");
-  svg.classList.add("melt-filters");
+  svg.style.cssText = "position: absolute; width: 0; height: 0";
   let ctx: gsap.Context | undefined;
 
   const split = SplitText.create(el, {
     type: "lines,words",
-    wordsClass: "word",
+    wordsClass: "melt-word",
     mask: "words",
     autoSplit: true,
     onSplit: ({ lines }) => {

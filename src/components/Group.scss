@@ -6,8 +6,9 @@
   margin: 0;
   padding: 0;
   border: 0;
-  border-top: 2px solid var(--border);
 
+  // The rule is on the legend: Safari hides a fieldset's top border behind
+  // its legend, even a floated one.
   legend {
     float: left;
     display: flex;
@@ -15,11 +16,18 @@
     gap: 10px;
     width: 100%;
     padding: 2px 0;
+    border-top: 2px solid var(--border);
     font-size: var(--text-ui);
     font-weight: 700;
 
     & + * {
       clear: both;
+    }
+    // A pane's own heading in the phone's dock, under its tab's rule.
+    @include phone {
+      min-height: 28px;
+      padding: 0;
+      border-top: 0;
     }
   }
   // The change count shows only while the group is folded.
@@ -47,15 +55,17 @@
     transform: translateY(-2px) rotate(45deg);
     transition: transform 240ms var(--ease-out);
   }
-  &:hover::before {
-    border-color: var(--accent);
+  @include hover {
+    &::before {
+      border-color: var(--accent);
+    }
   }
   &[aria-expanded="true"]::before {
     transform: translateY(2px) rotate(-135deg);
   }
+  // In the phone's dock the tabs do the folding.
   @include phone {
-    width: 44px;
-    height: 44px;
+    display: none;
   }
 }
 
