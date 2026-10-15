@@ -92,12 +92,7 @@ gsap.ticker.add((time) => lenis.raf(time * 1000));
 gsap.ticker.lagSmoothing(0);
 ```
 
-Keep Lenis to mice and trackpads. On a phone, native scrolling already glides, and smoothing it makes the page trail your finger. For a softer reveal there, lag the reveal instead and leave the scroll alone:
-
-```ts
-const touch = matchMedia("(pointer: coarse)").matches;
-meltReveal(el, { ...DEFAULTS, smooth: touch ? 0.6 : 0 });
-```
+Keep Lenis to mice and trackpads. On a phone, native scrolling already glides, and smoothing it makes the page trail your finger.
 
 </details>
 
