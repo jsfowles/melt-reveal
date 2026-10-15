@@ -13,10 +13,11 @@ const SVG = "http://www.w3.org/2000/svg";
 // The CSS the effect needs, added once. Each word's clip reaches a little
 // past it so descenders aren't cut. A line that hasn't started has its words
 // out of sight below their clips, so they wait flat, unfiltered and hidden
-// rather than each as a 3D layer.
+// rather than each as a 3D layer, and the line waits unfiltered too.
 const CSS = `
 .melt-word-mask { overflow: visible !important; clip-path: inset(-0.15em -0.08em); }
-.melt-waiting .melt-word { visibility: hidden; transform: none !important; filter: none !important; }
+.melt-waiting, .melt-waiting .melt-word { filter: none !important; }
+.melt-waiting .melt-word { visibility: hidden; transform: none !important; }
 `;
 let styled = false;
 const addStyles = () => {
@@ -70,6 +71,13 @@ const edge = (a: number) =>
   `0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 ${a} ${0.5 - 0.5 * a}`;
 
 const STAGGER = 0.08;
+
+// Safari's engine, which every browser on an iPhone uses, drops a filter whose
+// element has 3D-transformed children.
+const webkit =
+  typeof navigator !== "undefined" &&
+  /AppleWebKit/.test(navigator.userAgent) &&
+  !/(Chrome|Chromium|Edg)\//.test(navigator.userAgent);
 
 let uid = 0;
 
@@ -144,9 +152,10 @@ const lineReveal = (
   if (s.melt) {
     const f = meltFilter(svg, fontSize, s);
     const melt = { duration: s.duration * s.length, ease: s.ease };
-    // Safari drops a filter whose element has 3D-transformed children, so
-    // with the flip on it goes on the words themselves.
-    const inked = s.flip ? words : line;
+    // On the line, outside the words' clips, the melt spills softly past
+    // them. Safari would drop it there with the flip on, so in Safari it goes
+    // on the words, inside their clips.
+    const inked = s.flip && webkit ? words : line;
     gsap.set(inked, { filter: f.url });
     tl.from(
       f.blurs,

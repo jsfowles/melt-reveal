@@ -153,7 +153,12 @@ void Promise.race([
       { ...DEFAULTS, duration: 0.9, length: 1.4, amount },
       (tl) => intro.add(tl.paused(false), TITLE_AT),
     );
-    intro.eventCallback("onComplete", undoTitle);
+    // The specimens' triggers were measured mid-intro, with the sheet and the
+    // specimens still slid down, so they're measured again where they landed.
+    intro.eventCallback("onComplete", () => {
+      undoTitle();
+      ScrollTrigger.refresh();
+    });
     // Start a frame after the page first paints, so that heavy first frame
     // doesn't swallow the opening.
     requestAnimationFrame(() => requestAnimationFrame(() => intro.play()));
