@@ -74,6 +74,24 @@ const edge = (a: number) =>
 
 const STAGGER = 0.08;
 
+// The screen's height with the browser's toolbars showing, measured once per
+// ScrollTrigger refresh. Lines start and end at a share of it, so on a phone
+// they do so where they can be seen: ScrollTrigger's own % is of 100vh,
+// which on a phone is the height with the toolbars hidden, and can put the
+// start under them.
+let screen = 0;
+ScrollTrigger.addEventListener("refreshInit", () => (screen = 0));
+export const screenHeight = () => {
+  if (screen) return screen;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position: fixed; top: 0; height: 100svh; visibility: hidden; pointer-events: none";
+  document.body.append(probe);
+  screen = probe.offsetHeight || innerHeight;
+  probe.remove();
+  return screen;
+};
+
 // How far the melt may spill past a line, as a share of its size: the same
 // region the SVG filter is cut to.
 const SPILL = { x: 0.15, y: 0.4 };
@@ -1366,8 +1384,9 @@ export const meltReveal = (
           reveal(line as HTMLElement, {
             scrollTrigger: {
               trigger: line,
-              start: `top ${s.start}%`,
-              end: `top ${Math.min(s.end, s.start - 1)}%`,
+              start: () => `top ${(s.start / 100) * screenHeight()}px`,
+              end: () =>
+                `top ${(Math.min(s.end, s.start - 1) / 100) * screenHeight()}px`,
               scrub: s.smooth || true,
             },
           });

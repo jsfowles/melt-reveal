@@ -2,7 +2,7 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import { enter, INSPECTOR_AT, TITLE_AT } from "./entrance";
-import { DEFAULTS, meltReveal, type Settings } from "./melt";
+import { DEFAULTS, meltReveal, screenHeight, type Settings } from "./melt";
 import { startDock } from "./dock";
 import source from "./melt.ts?raw";
 import { startPanel } from "./panel";
@@ -52,12 +52,9 @@ const buildSpecimens = (settings: Settings) => {
 };
 
 // The start/end rules, shown only while the specimens are on screen. They're
-// placed against the screen height ScrollTrigger last measured, not the
-// screen's own: on a phone it doesn't measure again when the browser's
-// toolbar slides away, so a rule in % would drift off the point a line
-// really starts at.
+// placed against the same screen height the lines' triggers are, which
+// stays put when a phone's toolbar slides away.
 let specimensInView = false;
-let measured = innerHeight;
 const placeRules = ({ start, end }: Settings) => {
   const finish = Math.min(end, start - 1);
   document.documentElement.style.setProperty("--finish", `${100 - finish}vh`);
@@ -69,7 +66,7 @@ const placeRules = ({ start, end }: Settings) => {
     const label = $(`${id}-label`);
     rule.hidden = label.hidden =
       !guides.checked || reduced.matches || !specimensInView;
-    rule.style.top = label.style.top = `${(at / 100) * measured}px`;
+    rule.style.top = label.style.top = `${(at / 100) * screenHeight()}px`;
     label.textContent = `${word} ${at}%`;
   }
 };
@@ -94,10 +91,7 @@ scrub.addEventListener("input", () =>
 );
 $("play").addEventListener("click", () => inspector?.play(0));
 guides.addEventListener("change", () => placeRules(panel.settings()));
-ScrollTrigger.addEventListener("refreshInit", () => {
-  measured = innerHeight;
-  placeRules(panel.settings());
-});
+ScrollTrigger.addEventListener("refresh", () => placeRules(panel.settings()));
 
 // On a phone the open dock covers the foot of the screen, so opening it
 // brings the inspector up into the space above if it's hidden. Further down,

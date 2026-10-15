@@ -140,7 +140,7 @@ Same idea anywhere else: start it once the fonts are in, undo it when it goes aw
 
 | Setting       | Default      | Range      | Does                                                       |
 | ------------- | ------------ | ---------- | ---------------------------------------------------------- |
-| `start`       | `85`         | 20–100%    | Where on screen a line starts revealing, from the top.     |
+| `start`       | `85`         | 20–100%    | Where on screen a line starts revealing, from the top.¹    |
 | `end`         | `65`         | 0–95%      | Where it finishes.                                         |
 | `smooth`      | `0`          | 0–2s       | How long it lags behind your scroll. `0` follows exactly.  |
 | `flip`        | `true`       |            | Words swing up out of their clips.                         |
@@ -156,6 +156,8 @@ Same idea anywhere else: start it once the fonts are in, undo it when it goes aw
 | `dotSize`     | `0.09`       | 0.03–0.6em | Size of each dot.                                          |
 | `hardness`    | `27.5`       | 1–60       | How sharp the edge is. Low gets cloudy.                    |
 | `length`      | `1.3`        | 0.3–3×     | How long the melt runs compared to the flip.               |
+
+¹ `start` and `end` are a % of the screen with the browser's toolbars showing, so on a phone a line starts and ends where you can see it. ScrollTrigger's own % is of `100vh`, which on a phone is the taller screen with them hidden.
 
 The playground's presets are good starting points: **Default** (the defaults, with a 1s flip), **Wordmark** (coarser dots, lighter blur), **Halftone** (coarse dots, softer edge), **Flip only** and **Ink only**.
 
