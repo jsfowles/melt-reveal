@@ -14,6 +14,7 @@ const scrub = $<HTMLInputElement>("scrub");
 const guides = $<HTMLInputElement>("guides");
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
 const phone = matchMedia("(max-width: 899px)");
+const touch = matchMedia("(pointer: coarse)");
 
 // Blur is the costly part of the melt, and a phone paints it on the CPU, so
 // there it's capped in pixels. Desktop keeps the slider's full range.
@@ -42,12 +43,19 @@ const buildInspector = (settings: Settings, replay: boolean) => {
     if (replay && !reduced.matches) tl.play(0);
   });
 };
+// A finger scrolls natively, with no Lenis glide, so on touch the reveals
+// trail the scroll a little instead, unless a lag is set.
+const TOUCH_LAG = 0.6;
+const lagged = (settings: Settings) =>
+  touch.matches && settings.smooth === 0
+    ? { ...settings, smooth: TOUCH_LAG }
+    : settings;
 const buildSpecimens = (settings: Settings) => {
   undoSpecimens.forEach((fn) => fn());
   undoSpecimens = reduced.matches
     ? []
     : [...document.querySelectorAll<HTMLElement>(".reveal")].map((p) =>
-        meltReveal(p, capped(settings, p)),
+        meltReveal(p, capped(lagged(settings), p)),
       );
 };
 
